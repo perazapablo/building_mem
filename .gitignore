@@ -18,3 +18,11 @@ pnpm-debug.log*
 Thumbs.db
 
 test.js
+
+# Rust
+rust/target/
+
+# Old Node leftovers
+package.json
+package-lock.json
+tsconfig.json

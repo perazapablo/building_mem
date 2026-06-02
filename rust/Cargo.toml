@@ -1,0 +1,34 @@
+[package]
+name = "mcp-memory"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "mcp-memory"
+path = "src/main.rs"
+
+[[bin]]
+name = "migrate"
+path = "src/bin/migrate.rs"
+
+[dependencies]
+rusqlite = { version = "0.32", features = ["bundled", "trace"] }
+sha2 = "0.10"
+hex = "0.4"
+uuid = { version = "1", features = ["v4"] }
+unicode-normalization = "0.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+thiserror = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+rmcp = { version = "1.7", features = ["server", "transport-io", "macros", "schemars"] }
+schemars = "1.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "signal", "sync"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
