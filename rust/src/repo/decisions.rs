@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use rusqlite::{params, Connection, OptionalExtension};
+use serde::Serialize;
 
 use crate::hash::{decision_hash_source, hash_normalized, normalize_topic_key};
 use crate::tokens::token_metadata;
@@ -13,6 +14,59 @@ use super::auto_link;
 use super::identity::{find_active_by_hash, find_active_by_topic};
 use super::serialize::{serialize_decision, DecisionCtx};
 use super::{new_uuid, Db};
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct DecisionRow {
+    pub id: String,
+    pub project_id: String,
+    pub decision: String,
+    pub reasoning: String,
+    pub topic_key: Option<String>,
+    pub revision_count: i64,
+    pub status: String,
+    pub importance: i64,
+    pub obsolete_reason: Option<String>,
+    pub token_count: Option<i64>,
+    pub tokenizer_model: Option<String>,
+    pub content_hash: Option<String>,
+    pub created_at: String,
+    pub updated_at: Option<String>,
+}
+
+pub fn list_all(db: &Db, project_id: Option<&str>) -> Result<Vec<DecisionRow>> {
+    db.with(|conn| {
+        let map = |r: &rusqlite::Row<'_>| -> rusqlite::Result<DecisionRow> {
+            Ok(DecisionRow {
+                id: r.get(0)?,
+                project_id: r.get(1)?,
+                decision: r.get(2)?,
+                reasoning: r.get(3)?,
+                topic_key: r.get(4)?,
+                revision_count: r.get(5)?,
+                status: r.get(6)?,
+                importance: r.get(7)?,
+                obsolete_reason: r.get(8)?,
+                token_count: r.get(9)?,
+                tokenizer_model: r.get(10)?,
+                content_hash: r.get(11)?,
+                created_at: r.get(12)?,
+                updated_at: r.get(13)?,
+            })
+        };
+        let base = "SELECT id, project_id, decision, reasoning, topic_key, revision_count, status, importance, obsolete_reason, token_count, tokenizer_model, content_hash, created_at, updated_at FROM decisions";
+        if let Some(pid) = project_id {
+            let sql = format!("{base} WHERE project_id = ? ORDER BY COALESCE(updated_at, created_at) DESC");
+            let mut stmt = conn.prepare(&sql)?;
+            let rows = stmt.query_map(params![pid], map)?.collect::<rusqlite::Result<_>>()?;
+            Ok(rows)
+        } else {
+            let sql = format!("{base} ORDER BY COALESCE(updated_at, created_at) DESC");
+            let mut stmt = conn.prepare(&sql)?;
+            let rows = stmt.query_map([], map)?.collect::<rusqlite::Result<_>>()?;
+            Ok(rows)
+        }
+    })
+}
 
 const TABLE: &str = "decisions";
 
@@ -213,7 +267,7 @@ mod tests {
 
     fn fresh_with_project() -> (Db, String) {
         let db = Db::new_in_memory().unwrap();
-        let p = projects::upsert(&db, "p1", "", "development", &[]).unwrap();
+        let p = projects::upsert_force(&db, "p1", "", "development", &[]).unwrap();
         (db, p.id)
     }
 

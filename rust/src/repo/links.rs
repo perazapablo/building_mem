@@ -73,6 +73,29 @@ pub struct AuditEvent {
     pub ts: String,
 }
 
+pub fn list_all(db: &Db) -> Result<Vec<Link>> {
+    db.with(|conn| {
+        let mut stmt = conn.prepare(
+            "SELECT id, from_type, from_id, to_type, to_id, created_at
+             FROM links
+             ORDER BY created_at DESC",
+        )?;
+        let rows: Vec<Link> = stmt
+            .query_map([], |r| {
+                Ok(Link {
+                    id: r.get(0)?,
+                    from_type: r.get(1)?,
+                    from_id: r.get(2)?,
+                    to_type: r.get(3)?,
+                    to_id: r.get(4)?,
+                    created_at: r.get(5)?,
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+        Ok(rows)
+    })
+}
+
 pub fn add_link(
     db: &Db,
     from_type: &str,
@@ -259,7 +282,7 @@ mod tests {
 
     fn fresh_with_project() -> (Db, String) {
         let db = Db::new_in_memory().unwrap();
-        let p = projects::upsert(&db, "p1", "", "development", &[]).unwrap();
+        let p = projects::upsert_force(&db, "p1", "", "development", &[]).unwrap();
         (db, p.id)
     }
 

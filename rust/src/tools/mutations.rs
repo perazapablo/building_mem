@@ -39,7 +39,7 @@ pub struct UpdateNoteArgs {
     pub content: Option<String>,
     #[serde(default)]
     pub tags: Option<Vec<String>>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub importance: Option<i64>,
     #[serde(default)]
     pub topic_key: Option<String>,
@@ -57,7 +57,7 @@ pub struct UpdateDecisionArgs {
     pub decision: Option<String>,
     #[serde(default)]
     pub reasoning: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub importance: Option<i64>,
     #[serde(default)]
     pub topic_key: Option<String>,
@@ -70,7 +70,7 @@ pub struct UpdateArtifactArgs {
     pub artifact_type: Option<String>,
     #[serde(default)]
     pub content: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub importance: Option<i64>,
     #[serde(default)]
     pub topic_key: Option<String>,
@@ -88,7 +88,7 @@ pub struct MarkObsoleteArgs {
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct AuditStaleArgs {
     /// Minimum age in days (default: 30).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub days: Option<i64>,
     #[serde(default)]
     pub project_id: Option<String>,

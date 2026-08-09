@@ -1,0 +1,100 @@
+<div class="overview-scroll">
+  <div *ngIf="loading()" class="status">cargando…</div>
+  <div *ngIf="error()" class="error">{{ error() }}</div>
+
+  <ng-container *ngIf="snapshot() as snap">
+    <div class="counts-grid">
+      <div class="count-tile">
+        <span class="n">{{ snap.counts.notes }}</span>
+        <span class="lbl">notes</span>
+      </div>
+      <div class="count-tile">
+        <span class="n">{{ snap.counts.decisions }}</span>
+        <span class="lbl">decisions</span>
+      </div>
+      <div class="count-tile">
+        <span class="n">{{ snap.counts.artifacts }}</span>
+        <span class="lbl">artifacts</span>
+      </div>
+      <div class="count-tile">
+        <span class="n">{{ snap.counts.code_entities }}</span>
+        <span class="lbl">code entities</span>
+      </div>
+      <div class="count-tile" [class.warning]="snap.counts.relations > 0">
+        <span class="n">{{ snap.counts.relations }}</span>
+        <span class="lbl">pending judgments</span>
+      </div>
+      <div class="count-tile">
+        <span class="n">{{ snap.sessions.length }}</span>
+        <span class="lbl">sesiones recientes</span>
+      </div>
+    </div>
+
+    <app-section-card title="Context summary" *ngIf="contextSummary() as cs">
+      <div class="cs">
+        <div class="cs-block" *ngIf="cs.architecture">
+          <span class="cs-label">Architecture</span>
+          <p>{{ cs.architecture }}</p>
+        </div>
+        <div class="cs-block" *ngIf="cs.capabilities?.length">
+          <span class="cs-label">Capabilities</span>
+          <ul>
+            <li *ngFor="let c of cs.capabilities">{{ c }}</li>
+          </ul>
+        </div>
+        <div class="cs-block" *ngIf="cs.constraints?.length">
+          <span class="cs-label">Constraints</span>
+          <ul>
+            <li *ngFor="let c of cs.constraints">{{ c }}</li>
+          </ul>
+        </div>
+        <div class="cs-block" *ngIf="cs.pending_work?.length">
+          <span class="cs-label">Pending work</span>
+          <ul>
+            <li *ngFor="let p of cs.pending_work">{{ p }}</li>
+          </ul>
+        </div>
+        <div class="cs-block" *ngIf="cs.notes">
+          <span class="cs-label">Notes</span>
+          <p>{{ cs.notes }}</p>
+        </div>
+      </div>
+    </app-section-card>
+
+    <app-section-card title="Working state activo" [badge]="snap.workingStates.length"
+      *ngIf="snap.workingStates.length">
+      <div class="ws-list">
+        <div *ngFor="let ws of snap.workingStates" class="ws-item">
+          <div class="ws-focus">{{ ws.focus || '(sin focus)' }}</div>
+          <div class="ws-meta">session {{ ws.session_id.slice(0, 8) }} · {{ ws.updated_at }}</div>
+          <div class="ws-threads" *ngIf="ws.open_threads.length">
+            <span class="tag">open threads</span>
+            <ul>
+              <li *ngFor="let t of ws.open_threads">{{ t }}</li>
+            </ul>
+          </div>
+          <div class="ws-pinned" *ngIf="ws.pinned_ids.length">
+            <span class="tag">pinned</span>
+            <span class="chip" *ngFor="let id of ws.pinned_ids">{{ id }}</span>
+          </div>
+        </div>
+      </div>
+    </app-section-card>
+
+    <app-section-card title="Sesiones recientes" [badge]="snap.sessions.length"
+      *ngIf="snap.sessions.length">
+      <div class="sessions">
+        <div *ngFor="let s of snap.sessions" class="session">
+          <div class="s-head">
+            <span class="s-title">{{ s.title }}</span>
+            <span class="s-date">{{ s.updated_at || s.created_at }}</span>
+          </div>
+          <div class="s-body">
+            <div class="s-goal" *ngIf="sessionGoal(s)"><strong>Goal:</strong> {{ sessionGoal(s) }}</div>
+            <div class="s-outcome" *ngIf="sessionOutcome(s)"><strong>Outcome:</strong> {{ sessionOutcome(s) }}</div>
+          </div>
+        </div>
+      </div>
+    </app-section-card>
+  </ng-container>
+</div>

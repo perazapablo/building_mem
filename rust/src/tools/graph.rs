@@ -51,7 +51,7 @@ pub struct GetRelatedArgs {
     pub entity_type: EntityType,
     pub entity_id: String,
     /// Traversal depth (default: 1).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub depth: Option<i64>,
 }
 

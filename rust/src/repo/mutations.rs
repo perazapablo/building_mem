@@ -229,7 +229,7 @@ mod tests {
 
     fn fresh_with_project() -> (Db, String) {
         let db = Db::new_in_memory().unwrap();
-        let p = projects::upsert(&db, "p1", "", "development", &[]).unwrap();
+        let p = projects::upsert_force(&db, "p1", "", "development", &[]).unwrap();
         (db, p.id)
     }
 
@@ -287,8 +287,8 @@ mod tests {
     #[test]
     fn audit_stale_filters_by_project_id() {
         let db = Db::new_in_memory().unwrap();
-        let p1 = projects::upsert(&db, "p1", "", "development", &[]).unwrap();
-        let p2 = projects::upsert(&db, "p2", "", "development", &[]).unwrap();
+        let p1 = projects::upsert_force(&db, "p1", "", "development", &[]).unwrap();
+        let p2 = projects::upsert_force(&db, "p2", "", "development", &[]).unwrap();
         let n1 = notes::add(&db, &p1.id, "in p1", &[], Some(3), None).unwrap();
         let n2 = notes::add(&db, &p2.id, "in p2", &[], Some(3), None).unwrap();
         backdate_note(&db, &n1, 60);

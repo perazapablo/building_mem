@@ -21,8 +21,9 @@ test.js
 
 # Rust
 rust/target/
+rust/target-check/
 
-# Old Node leftovers
-package.json
-package-lock.json
-tsconfig.json
+# Old Node leftovers (repo root only)
+/package.json
+/package-lock.json
+/tsconfig.json

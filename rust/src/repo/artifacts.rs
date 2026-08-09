@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use rusqlite::{params, Connection, OptionalExtension};
+use serde::Serialize;
 
 use crate::hash::{artifact_hash_source, hash_normalized, normalize_topic_key};
 use crate::tokens::token_metadata;
@@ -15,6 +16,60 @@ use super::serialize::{serialize_artifact, ArtifactCtx};
 use super::{new_uuid, Db};
 
 const TABLE: &str = "artifacts";
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct ArtifactRow {
+    pub id: String,
+    pub project_id: String,
+    #[serde(rename = "type")]
+    pub artifact_type: String,
+    pub content: String,
+    pub topic_key: Option<String>,
+    pub revision_count: i64,
+    pub status: String,
+    pub importance: i64,
+    pub obsolete_reason: Option<String>,
+    pub token_count: Option<i64>,
+    pub tokenizer_model: Option<String>,
+    pub content_hash: Option<String>,
+    pub created_at: String,
+    pub updated_at: Option<String>,
+}
+
+pub fn list_all(db: &Db, project_id: Option<&str>) -> Result<Vec<ArtifactRow>> {
+    db.with(|conn| {
+        let map = |r: &rusqlite::Row<'_>| -> rusqlite::Result<ArtifactRow> {
+            Ok(ArtifactRow {
+                id: r.get(0)?,
+                project_id: r.get(1)?,
+                artifact_type: r.get(2)?,
+                content: r.get(3)?,
+                topic_key: r.get(4)?,
+                revision_count: r.get(5)?,
+                status: r.get(6)?,
+                importance: r.get(7)?,
+                obsolete_reason: r.get(8)?,
+                token_count: r.get(9)?,
+                tokenizer_model: r.get(10)?,
+                content_hash: r.get(11)?,
+                created_at: r.get(12)?,
+                updated_at: r.get(13)?,
+            })
+        };
+        let base = "SELECT id, project_id, type, content, topic_key, revision_count, status, importance, obsolete_reason, token_count, tokenizer_model, content_hash, created_at, updated_at FROM artifacts";
+        if let Some(pid) = project_id {
+            let sql = format!("{base} WHERE project_id = ? ORDER BY COALESCE(updated_at, created_at) DESC");
+            let mut stmt = conn.prepare(&sql)?;
+            let rows = stmt.query_map(params![pid], map)?.collect::<rusqlite::Result<_>>()?;
+            Ok(rows)
+        } else {
+            let sql = format!("{base} ORDER BY COALESCE(updated_at, created_at) DESC");
+            let mut stmt = conn.prepare(&sql)?;
+            let rows = stmt.query_map([], map)?.collect::<rusqlite::Result<_>>()?;
+            Ok(rows)
+        }
+    })
+}
 
 fn normalize_importance(value: i64) -> i64 {
     value.clamp(1, 5)
@@ -213,7 +268,7 @@ mod tests {
 
     fn fresh_with_project() -> (Db, String) {
         let db = Db::new_in_memory().unwrap();
-        let p = projects::upsert(&db, "p1", "", "development", &[]).unwrap();
+        let p = projects::upsert_force(&db, "p1", "", "development", &[]).unwrap();
         (db, p.id)
     }
 

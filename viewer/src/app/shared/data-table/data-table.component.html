@@ -1,0 +1,39 @@
+<div class="data-table-wrap">
+  <div class="data-table-toolbar">
+    <input
+      type="search"
+      placeholder="Filtrar texto..."
+      [(ngModel)]="filterText"
+      (ngModelChange)="onFilterChange($event)"
+    />
+    <span class="count">{{ filtered().length }} / {{ rows.length }}</span>
+  </div>
+  <div class="data-table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th *ngFor="let c of columns" [style.width]="c.width">{{ c.label }}</th>
+          <th class="actions-col">acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of filtered(); trackBy: trackByIdx">
+          <td *ngFor="let c of columns">
+            <ng-container *ngIf="c.json; else plain">
+              <pre class="json-cell">{{ formatJson(row[c.key]) }}</pre>
+            </ng-container>
+            <ng-template #plain>
+              <span class="cell" [title]="stringify(row[c.key])">{{ stringify(row[c.key]) }}</span>
+            </ng-template>
+          </td>
+          <td class="actions-col">
+            <button type="button" (click)="copyRow(row)">copy</button>
+          </td>
+        </tr>
+        <tr *ngIf="!filtered().length">
+          <td [attr.colspan]="columns.length + 1" class="empty">sin filas</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

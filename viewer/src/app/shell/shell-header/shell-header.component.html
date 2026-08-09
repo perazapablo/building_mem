@@ -1,0 +1,22 @@
+<header class="shell-header">
+  <div class="left">
+    <strong>MCP Memory</strong>
+    <span class="path" [title]="dbPath()">{{ dbPath() }}</span>
+  </div>
+  <div class="right">
+    <ng-container *ngIf="counts() as c">
+      <span class="count" title="projects">p:{{ c.projects }}</span>
+      <span class="count" title="sessions">s:{{ c.sessions }}</span>
+      <span class="count" title="notes">n:{{ c.notes }}</span>
+      <span class="count" title="decisions">d:{{ c.decisions }}</span>
+      <span class="count" title="artifacts">a:{{ c.artifacts }}</span>
+      <span class="count" title="code_entities">ce:{{ c.code_entities }}</span>
+      <span class="count" title="relations">r:{{ c.memory_relations }}</span>
+      <span class="count" title="links">l:{{ c.links }}</span>
+      <span class="count" title="events">e:{{ c.events }}</span>
+    </ng-container>
+    <button type="button" (click)="refresh()" [disabled]="loading()">↻</button>
+    <button type="button" (click)="pickDb()">abrir otra BD…</button>
+  </div>
+  <div *ngIf="error()" class="error">{{ error() }}</div>
+</header>

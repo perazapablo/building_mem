@@ -1,0 +1,57 @@
+:root {
+  color-scheme: dark;
+  --bg: #0e0e0e;
+  --bg-elev: #161616;
+  --bg-elev-2: #1c1c1c;
+  --fg: #ddd;
+  --fg-dim: #888;
+  --border: #2a2a2a;
+  --accent: #4ec9b0;
+  --accent-2: #569cd6;
+  --danger: #f48771;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-monospace, "JetBrains Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+a {
+  color: var(--accent-2);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0e0e0e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2c2c2c;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}

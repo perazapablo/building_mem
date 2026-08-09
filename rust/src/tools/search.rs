@@ -15,10 +15,10 @@ use super::{json_result, repo_error, MemoryService};
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct SearchAllArgs {
     pub query: String,
-    #[serde(default)]
-    pub project_id: Option<String>,
+    /// Project ID to scope the search to. Required — no cross-project search.
+    pub project_id: String,
     /// Maximum total results (default: 10, max: 50).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub limit: Option<i64>,
     #[serde(default)]
     pub include_obsolete: Option<bool>,
@@ -27,8 +27,10 @@ pub struct SearchAllArgs {
 #[tool_router(router = search_router, vis = "pub(crate)")]
 impl MemoryService {
     #[tool(
-        description = "Searches notes, decisions, artifacts, and code_entities in one FTS5 call. \
-            Use when the DB should answer a question but the memory type is unknown."
+        description = "Searches notes, decisions, artifacts, and code_entities in one FTS5 call, \
+            scoped to a single project (project_id required). Returns hits with TRUNCATED content \
+            (~200 char snippets). Use to answer a question when the memory type is unknown; \
+            fetch the full payload via get_note / get_artifact / get_code_entity when needed."
     )]
     pub async fn search_all(
         &self,
@@ -39,7 +41,7 @@ impl MemoryService {
         let r = search::search_all(
             &self.db,
             &args.query,
-            args.project_id.as_deref(),
+            &args.project_id,
             limit,
             include_obsolete,
         )

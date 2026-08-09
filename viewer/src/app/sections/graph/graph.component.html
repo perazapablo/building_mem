@@ -1,0 +1,59 @@
+<div class="graph">
+  <header class="bar">
+    <nav class="tabs">
+      <button [class.active]="view() === 'pending'" (click)="view.set('pending')">
+        Pending <span class="c">{{ pending().length }}</span>
+      </button>
+      <button [class.active]="view() === 'accepted'" (click)="view.set('accepted')">Accepted</button>
+      <button [class.active]="view() === 'rejected'" (click)="view.set('rejected')">Rejected</button>
+      <button [class.active]="view() === 'all'" (click)="view.set('all')">Todas</button>
+    </nav>
+    <input type="search" placeholder="filtrar…" [ngModel]="filter()" (ngModelChange)="filter.set($event)" />
+  </header>
+
+  <div class="stats">
+    <div class="stat" *ngFor="let r of byRelationType()">
+      <span class="rel">{{ r[0] }}</span>
+      <span class="n">{{ r[1] }}</span>
+    </div>
+  </div>
+
+  <div *ngIf="loading()" class="status">cargando…</div>
+  <div *ngIf="error()" class="error">{{ error() }}</div>
+
+  <ul class="rel-list" *ngIf="!loading() && !error()">
+    <li *ngFor="let r of visible()">
+      <div class="triple">
+        <div class="endpoint" [class.missing]="labelFor(r.source_type, r.source_id).missing">
+          <div class="type-row">
+            <span class="type-badge">{{ r.source_type }}</span>
+          </div>
+          <div class="primary">{{ labelFor(r.source_type, r.source_id).primary }}</div>
+          <div class="secondary" *ngIf="labelFor(r.source_type, r.source_id).secondary">
+            {{ labelFor(r.source_type, r.source_id).secondary }}
+          </div>
+        </div>
+        <span class="rel-type" [attr.data-rel]="r.relation">{{ r.relation }}</span>
+        <div class="endpoint" [class.missing]="labelFor(r.target_type, r.target_id).missing">
+          <div class="type-row">
+            <span class="type-badge">{{ r.target_type }}</span>
+          </div>
+          <div class="primary">{{ labelFor(r.target_type, r.target_id).primary }}</div>
+          <div class="secondary" *ngIf="labelFor(r.target_type, r.target_id).secondary">
+            {{ labelFor(r.target_type, r.target_id).secondary }}
+          </div>
+        </div>
+      </div>
+      <div class="meta">
+        <span class="judge" [attr.data-status]="r.judgment_status">{{ r.judgment_status }}</span>
+        <div class="conf-bar" [title]="'confidence ' + r.confidence">
+          <div class="fill" [style.width.%]="confidencePct(r.confidence)"></div>
+        </div>
+        <span class="conf-text">{{ confidencePct(r.confidence) }}%</span>
+        <span class="by">{{ r.marked_by_actor }}</span>
+      </div>
+      <p class="reason" *ngIf="r.reason">{{ r.reason }}</p>
+    </li>
+    <li *ngIf="!visible().length" class="empty">sin relaciones</li>
+  </ul>
+</div>

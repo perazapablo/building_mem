@@ -1,0 +1,159 @@
+<aside class="projects-sidebar">
+  <header>
+    <span class="title">Proyectos</span>
+    <span class="count">{{ ws.projects().length }}</span>
+    <button type="button" (click)="ws.loadProjects()" title="recargar">↻</button>
+  </header>
+  <div class="error" *ngIf="ws.error()">{{ ws.error() }}</div>
+  <ul>
+    <li
+      *ngFor="let p of ws.projects()"
+      [class.active]="p.id === ws.current()?.id"
+      (click)="select(p)"
+    >
+      <div class="row">
+        <div class="info">
+          <div class="name">{{ p.name }}</div>
+          <div class="meta">
+            <span class="type">{{ p.project_type }}</span>
+            <span class="tags" *ngIf="p.tags?.length">{{ p.tags.join(' · ') }}</span>
+          </div>
+        </div>
+        <button
+          class="merge"
+          type="button"
+          title="fusionar en otro proyecto"
+          (click)="askMerge(p, $event)"
+        >
+          ⇢
+        </button>
+        <button
+          class="delete"
+          type="button"
+          title="eliminar proyecto"
+          (click)="askDelete(p, $event)"
+        >
+          ✕
+        </button>
+      </div>
+    </li>
+    <li *ngIf="!ws.projects().length && !ws.loading()" class="empty">sin proyectos</li>
+    <li *ngIf="ws.loading()" class="empty">cargando…</li>
+  </ul>
+</aside>
+
+<div class="modal-backdrop" *ngIf="pendingDelete() as p" (click)="cancelDelete()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <h3>Eliminar proyecto</h3>
+    <p>
+      Esto borra el proyecto <strong>{{ p.name }}</strong> y <em>todas</em> sus notas, decisiones,
+      artifacts, code entities, sessions, working states, links y memory relations. No es reversible.
+    </p>
+    <p class="hint">Escribí el nombre exacto del proyecto para confirmar:</p>
+    <input
+      type="text"
+      [ngModel]="typedName()"
+      (ngModelChange)="typedName.set($event)"
+      [placeholder]="p.name"
+      autocomplete="off"
+      [disabled]="deleting()"
+    />
+    <div class="error" *ngIf="deleteError()">{{ deleteError() }}</div>
+    <div class="actions">
+      <button type="button" (click)="cancelDelete()" [disabled]="deleting()">Cancelar</button>
+      <button
+        type="button"
+        class="danger"
+        (click)="confirmDelete()"
+        [disabled]="!canConfirm()"
+      >
+        {{ deleting() ? 'Eliminando…' : 'Eliminar' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" *ngIf="pendingMerge() as src" (click)="cancelMerge()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <h3 class="info">Fusionar proyecto</h3>
+    <p>
+      Mueve todas las notas, decisiones, artifacts, code entities y sessions de
+      <strong>{{ src.name }}</strong> al proyecto destino, y borra
+      <strong>{{ src.name }}</strong>. Los links y memory_relations que apunten al
+      proyecto se retargetean. No es reversible.
+    </p>
+    <p class="hint">Proyecto destino:</p>
+    <select
+      [ngModel]="mergeTargetId()"
+      (ngModelChange)="mergeTargetId.set($event)"
+      [disabled]="merging()"
+    >
+      <option value="" disabled>— elegir destino —</option>
+      <option *ngFor="let p of mergeTargetCandidates()" [value]="p.id">
+        {{ p.name }}
+      </option>
+    </select>
+    <p class="hint">Escribí el nombre exacto de <strong>{{ src.name }}</strong> para confirmar:</p>
+    <input
+      type="text"
+      [ngModel]="mergeTypedName()"
+      (ngModelChange)="mergeTypedName.set($event)"
+      [placeholder]="src.name"
+      autocomplete="off"
+      [disabled]="merging()"
+    />
+    <div class="error" *ngIf="mergeError()">{{ mergeError() }}</div>
+    <div class="actions">
+      <button type="button" (click)="cancelMerge()" [disabled]="merging()">Cancelar</button>
+      <button
+        type="button"
+        class="primary"
+        (click)="confirmMerge()"
+        [disabled]="!canConfirmMerge()"
+      >
+        {{ merging() ? 'Fusionando…' : 'Fusionar' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" *ngIf="lastMerge() as m" (click)="dismissMergeResult()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <h3 class="info">Proyectos fusionados</h3>
+    <p>
+      <strong>{{ m.source_name }}</strong> → <strong>{{ m.target_name }}</strong>
+    </p>
+    <ul class="counts">
+      <li>notes movidas: {{ m.notes }}</li>
+      <li>decisions movidas: {{ m.decisions }}</li>
+      <li>artifacts movidos: {{ m.artifacts }}</li>
+      <li>code_entities movidos: {{ m.code_entities }}</li>
+      <li>sessions movidas: {{ m.sessions }}</li>
+      <li>links retargeteados: {{ m.links }}</li>
+      <li>memory_relations retargeteadas: {{ m.memory_relations }}</li>
+    </ul>
+    <div class="actions">
+      <button type="button" (click)="dismissMergeResult()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" *ngIf="lastResult() as r" (click)="dismissResult()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <h3>Proyecto eliminado</h3>
+    <p><strong>{{ r.project_name }}</strong></p>
+    <ul class="counts">
+      <li>notes: {{ r.notes }}</li>
+      <li>decisions: {{ r.decisions }}</li>
+      <li>artifacts: {{ r.artifacts }}</li>
+      <li>code_entities: {{ r.code_entities }}</li>
+      <li>sessions: {{ r.sessions }}</li>
+      <li>working_states: {{ r.working_states }}</li>
+      <li>links: {{ r.links }}</li>
+      <li>memory_relations: {{ r.memory_relations }}</li>
+    </ul>
+    <div class="actions">
+      <button type="button" (click)="dismissResult()">Cerrar</button>
+    </div>
+  </div>
+</div>

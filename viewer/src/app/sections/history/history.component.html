@@ -1,0 +1,82 @@
+<div class="history">
+  <aside class="timeline">
+    <header>
+      <span>Timeline</span>
+      <span class="count">{{ sessions().length }}</span>
+    </header>
+    <div *ngIf="loading()" class="status">cargando…</div>
+    <div *ngIf="error()" class="error">{{ error() }}</div>
+    <ul *ngIf="!loading()">
+      <li *ngFor="let s of sessions()"
+        [class.active]="selected()?.id === s.id"
+        (click)="select(s)">
+        <div class="dot"></div>
+        <div class="body">
+          <div class="title">{{ s.title || '(sin título)' }}</div>
+          <div class="date">{{ s.updated_at || s.created_at }}</div>
+        </div>
+      </li>
+      <li *ngIf="!sessions().length" class="empty">sin sesiones</li>
+    </ul>
+  </aside>
+
+  <section class="detail" *ngIf="selected() as s">
+    <header>
+      <h3>{{ s.title }}</h3>
+      <span class="meta">{{ s.updated_at || s.created_at }}</span>
+    </header>
+
+    <div class="detail-scroll">
+      <ng-container *ngIf="s.parsedSummary as sum">
+        <div class="block" *ngIf="sum.goal">
+          <h4>Goal</h4>
+          <p>{{ sum.goal }}</p>
+        </div>
+        <div class="block" *ngIf="sum.outcome">
+          <h4>Outcome</h4>
+          <p>{{ sum.outcome }}</p>
+        </div>
+        <div class="block" *ngIf="sum.decisions_ref?.length">
+          <h4>Decisions referenciadas <span class="count">{{ sum.decisions_ref?.length }}</span></h4>
+          <ul class="ids"><li *ngFor="let id of sum.decisions_ref">{{ id }}</li></ul>
+        </div>
+        <div class="block" *ngIf="sum.artifacts_ref?.length">
+          <h4>Artifacts referenciados <span class="count">{{ sum.artifacts_ref?.length }}</span></h4>
+          <ul class="ids"><li *ngFor="let id of sum.artifacts_ref">{{ id }}</li></ul>
+        </div>
+        <div class="block" *ngIf="sum.pending?.length">
+          <h4>Pending</h4>
+          <ul><li *ngFor="let p of sum.pending">{{ p }}</li></ul>
+        </div>
+        <div class="block" *ngIf="sum.blockers?.length">
+          <h4>Blockers</h4>
+          <ul class="blockers"><li *ngFor="let b of sum.blockers">{{ b }}</li></ul>
+        </div>
+        <div class="block" *ngIf="sum.notes">
+          <h4>Notes</h4>
+          <p>{{ sum.notes }}</p>
+        </div>
+      </ng-container>
+
+      <div class="block" *ngIf="workingState() as ws">
+        <h4>Working state</h4>
+        <div class="ws">
+          <div><span>focus:</span> {{ ws.focus || '—' }}</div>
+          <div *ngIf="ws.open_threads.length">
+            <span>open threads:</span>
+            <ul><li *ngFor="let t of ws.open_threads">{{ t }}</li></ul>
+          </div>
+          <div *ngIf="ws.pinned_ids.length">
+            <span>pinned:</span>
+            <div class="chips">
+              <span class="chip" *ngFor="let id of ws.pinned_ids">{{ id }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="detail empty-pane" *ngIf="!selected()">
+    <p>Seleccioná una sesión.</p>
+  </section>
+</div>

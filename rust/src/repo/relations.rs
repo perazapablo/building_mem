@@ -165,6 +165,24 @@ pub fn upsert(db: &Db, p: &UpsertRelationParams<'_>) -> Result<String> {
     db.with(|conn| upsert_in_tx(conn, p))
 }
 
+pub fn list_all(db: &Db, limit: i64) -> Result<Vec<Relation>> {
+    db.with(|conn| {
+        let mut stmt = conn.prepare(
+            "SELECT sync_id, source_type, source_id, target_type, target_id, relation,
+                    reason, evidence, confidence, judgment_status,
+                    marked_by_actor, marked_by_kind, marked_by_model,
+                    session_id, created_at, updated_at
+             FROM memory_relations
+             ORDER BY updated_at DESC, created_at DESC
+             LIMIT ?",
+        )?;
+        let rows: Vec<Relation> = stmt
+            .query_map(params![limit], map_relation)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    })
+}
+
 pub fn judge(
     db: &Db,
     sync_id: &str,

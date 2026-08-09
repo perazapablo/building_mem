@@ -77,6 +77,42 @@ pub fn update_checkpoint(
     })
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct SessionIndexRow {
+    pub id: String,
+    pub title: String,
+    pub project_id: Option<String>,
+    pub created_at: String,
+    pub updated_at: Option<String>,
+}
+
+/// Compact session index for the MCP `get_sessions` tool. Scoped to a single
+/// project and capped by the caller. Excludes the structured `summary` — the
+/// caller fetches the full session only when a specific one is relevant.
+pub fn list_index(db: &Db, project_id: &str, limit: i64) -> Result<Vec<SessionIndexRow>> {
+    db.with(|conn| {
+        let mut stmt = conn.prepare(
+            "SELECT id, title, project_id, created_at, updated_at
+             FROM sessions
+             WHERE project_id = ?
+             ORDER BY updated_at DESC, created_at DESC
+             LIMIT ?",
+        )?;
+        let rows: Vec<SessionIndexRow> = stmt
+            .query_map(params![project_id, limit], |r| {
+                Ok(SessionIndexRow {
+                    id: r.get(0)?,
+                    title: r.get(1)?,
+                    project_id: r.get(2)?,
+                    created_at: r.get(3)?,
+                    updated_at: r.get(4)?,
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+        Ok(rows)
+    })
+}
+
 pub fn list(db: &Db, limit: i64) -> Result<Vec<SessionRow>> {
     db.with(|conn| {
         let mut stmt = conn.prepare(
@@ -98,6 +134,45 @@ pub fn list(db: &Db, limit: i64) -> Result<Vec<SessionRow>> {
             })?
             .collect::<rusqlite::Result<_>>()?;
         Ok(rows)
+    })
+}
+
+pub fn list_all(db: &Db, project_id: Option<&str>) -> Result<Vec<SessionRow>> {
+    db.with(|conn| {
+        let base = "SELECT id, title, summary, project_id, created_at, updated_at FROM sessions";
+        if let Some(pid) = project_id {
+            let sql = format!("{base} WHERE project_id = ? ORDER BY updated_at DESC, created_at DESC");
+            let mut stmt = conn.prepare(&sql)?;
+            let rows: Vec<SessionRow> = stmt
+                .query_map(params![pid], |r| {
+                    Ok(map_row(
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                    ))
+                })?
+                .collect::<rusqlite::Result<_>>()?;
+            Ok(rows)
+        } else {
+            let sql = format!("{base} ORDER BY updated_at DESC, created_at DESC");
+            let mut stmt = conn.prepare(&sql)?;
+            let rows: Vec<SessionRow> = stmt
+                .query_map([], |r| {
+                    Ok(map_row(
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                    ))
+                })?
+                .collect::<rusqlite::Result<_>>()?;
+            Ok(rows)
+        }
     })
 }
 
@@ -167,7 +242,7 @@ mod tests {
     fn checkpoint_associates_project_and_optional_summary() {
         let db = fresh();
         let id = save(&db, "t", &sample_summary(), None).unwrap();
-        let p = projects::upsert(&db, "p1", "", "development", &[]).unwrap();
+        let p = projects::upsert_force(&db, "p1", "", "development", &[]).unwrap();
 
         update_checkpoint(&db, &id, &p.id, None).unwrap();
         let got = get(&db, &id).unwrap().unwrap();

@@ -62,7 +62,7 @@ pub struct AddCodeEntityArgs {
     pub side_effects: Option<String>,
     #[serde(default)]
     pub tags: Option<Vec<String>>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub importance: Option<i64>,
     #[serde(default)]
     pub topic_key: Option<String>,
@@ -91,7 +91,7 @@ pub struct UpdateCodeEntityArgs {
     pub side_effects: Option<String>,
     #[serde(default)]
     pub tags: Option<Vec<String>>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub importance: Option<i64>,
     #[serde(default)]
     pub topic_key: Option<String>,
@@ -108,7 +108,7 @@ pub struct SearchCodeEntitiesArgs {
     #[serde(default)]
     pub project_id: Option<String>,
     /// Max results (default: 10, max: 20).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub limit: Option<i64>,
     #[serde(default)]
     pub include_obsolete: Option<bool>,
@@ -119,7 +119,7 @@ pub struct GetCodeEntityContextArgs {
     pub project_id: String,
     pub query: String,
     /// Max results (default: 10, max: 20).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub limit: Option<i64>,
 }
 

@@ -14,36 +14,35 @@ Never invert this order. If the DB contradicts the code, the DB is stale. If the
 
 The DB is provider-agnostic. Same protocol for Claude, GPT, Codex, opencode, Cursor, any future client. The binary is one process; clients open their own MCP connections via stdio. SQLite WAL mode (enabled in migrations) allows N readers + 1 writer concurrently — no locks to worry about under normal use.
 
-## 2. Lifecycle detail
+## 2. How the tools behave
 
-### INICIO
+Every tool is scoped by `project_id` — that is the primary anchor. If you don't have one yet, use `list_projects` + `get_project` (existing) or `upsert_project` (new). Reuse the returned id for every subsequent call.
 
-```
-get_sessions(limit=20)                  # detect continuity
-upsert_project(...) or get_project(id)  # bind to a project
-build_context(project_id, token_budget=4000)  # load durable memory
-set_working_state(session_id, focus, open_threads, pinned_ids)
-```
+### Reading
 
-- `get_sessions` returns a compact index with structured `summary` already parsed. Use it to decide if this is a continuation or a fresh start.
-- `build_context` is **the** load function. Token-aware, returns the highest-importance + pinned items that fit the budget, plus graph expansion via accepted relations.
-- `set_working_state` is what makes future `build_context` calls prioritise correctly. Update it whenever focus pivots, not on every message.
+- `get_sessions(project_id)` — last 5 sessions of the project (compact index: id, title, timestamps). Use to decide if this is a continuation. There is no cross-project listing.
+- `build_context(project_id, token_budget)` — token-aware bundle of highest-importance + pinned items + graph expansion via accepted relations. The load function when you need durable context.
+- `search_all(query, project_id)` — one FTS5 call across notes / decisions / artifacts / code_entities. Returns snippets (~200 chars). Use when the answer is in memory but the type is unknown.
+- `search_notes` / `search_code_entities` — narrower FTS when the type is known.
+- `get_note` / `get_artifact` / `get_code_entity` — full payload by id, when a snippet is not enough.
+- `get_related` / `get_code_entity_context` — graph expansion around a known entity.
+- `get_working_state(session_id)` — pinned ids and current focus for a session.
 
-### DURANTE
+Default excludes obsolete. `include_obsolete=true` only for history/audit/recovery.
 
-Call `add_*` **immediately** at the moment a decision is made, an artifact is produced, or a code entity is inspected. Batching at session close defeats the point — interrupt-tolerant memory only works if facts land before the interruption.
+### Writing (during work)
 
-```
-add_decision(project_id, decision, reasoning, importance=3, topic_key=?)
-add_artifact(project_id, type, content, importance=3, topic_key=?)
-add_code_entity(project_id, kind, name, qualified_name?, path?, summary?, ...)
-add_note(project_id, content, tags, importance=3, topic_key=?)
-```
+- `add_decision` / `add_artifact` / `add_code_entity` / `add_note` — call at the moment a fact appears, not batched at close. Interrupt-tolerant memory only works if facts land before the interruption. Pass `topic_key` for anything you might revise — a second `add_*` with the same key updates the active entity instead of duplicating.
+- `update_*` — revise an existing entity by id. `revision_count` increments automatically.
+- `mark_obsolete(type, id, reason)` — supersede without deleting. Preferred over `delete_*` for anything with history.
+- `delete_*` — for accidents and re-keys, not everyday cleanup. Requires user confirmation (harness `ask` gate).
+- `set_working_state(session_id, focus, open_threads, pinned_ids)` — call when focus pivots, not per message. It shapes future `build_context` calls.
 
-- `importance` is 1–5. Most facts are 3. Only mark 5 for project-shaping decisions or critical constraints.
-- `topic_key` is a stable semantic identifier (e.g. `"auth.session.expiry"`). When provided, a second `add_*` with the same key **updates** the active entity instead of creating a duplicate. Use it for anything you might revise.
+`importance` is 1–5. Most facts are 3. Reserve 5 for project-shaping decisions or critical constraints — it drives ranking in `build_context`.
 
-### CIERRE
+### Closing a stage (only when Pablo asks)
+
+Not autonomous. Only when Pablo says "cerrá", "checkpoint", "guardá la sesión" or equivalent. The agent does **not** decide to checkpoint on its own — no clock, no "logical stage detected".
 
 ```
 checkpoint(session_id, project_id, session_summary=SessionSummary{...})
@@ -51,7 +50,7 @@ get_pending_judgments(project_id) → judge_relation(sync_id, status) per row
 ```
 
 - `checkpoint` persists the session summary, updates the project's `context_summary` (or generates one mechanically if you omit it), and runs a final `build_context` for the record.
-- `get_pending_judgments` returns the auto-detected relations awaiting human review. Process them in batch at close, not per-entity.
+- `get_pending_judgments` returns the auto-detected relations awaiting human review. Process them in batch at that moment, not per-entity during work.
 
 ## 3. Decision matrix expanded
 

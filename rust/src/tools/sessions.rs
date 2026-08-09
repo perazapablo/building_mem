@@ -13,11 +13,12 @@ use crate::summary::SessionSummary;
 
 use super::{json_result, repo_error, MemoryService};
 
+const SESSIONS_INDEX_LIMIT: i64 = 5;
+
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct GetSessionsArgs {
-    /// Number of sessions to return (default: 20).
-    #[serde(default)]
-    pub limit: Option<i64>,
+    /// Project ID to scope the session list to. Required.
+    pub project_id: String,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -42,15 +43,18 @@ pub struct UpdateSessionArgs {
 #[tool_router(router = sessions_router, vis = "pub(crate)")]
 impl MemoryService {
     #[tool(
-        description = "Returns the recent session index. Call at the start of a conversation \
-            to detect continuity. Compact, not token-aware. Recommended limit: 20."
+        description = "Returns the 5 most recent sessions for the given project (compact index: \
+            id, title, project_id, created_at, updated_at). Requires project_id. \
+            Does NOT include the structured summary — fetch a specific session directly \
+            when needed. Use to detect continuity within a project; there is no cross-project \
+            listing on purpose."
     )]
     pub async fn get_sessions(
         &self,
         Parameters(args): Parameters<GetSessionsArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        let limit = args.limit.unwrap_or(20);
-        let rows = sessions::list(&self.db, limit).map_err(repo_error)?;
+        let rows = sessions::list_index(&self.db, &args.project_id, SESSIONS_INDEX_LIMIT)
+            .map_err(repo_error)?;
         json_result(&rows)
     }
 

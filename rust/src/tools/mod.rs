@@ -17,6 +17,7 @@ use crate::repo::Db;
 
 pub mod code;
 pub mod context;
+pub mod flex_int;
 pub mod graph;
 pub mod knowledge;
 pub mod mutations;

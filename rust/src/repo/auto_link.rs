@@ -322,7 +322,7 @@ mod tests {
 
     fn fresh_with_project() -> (Db, String) {
         let db = Db::new_in_memory().unwrap();
-        let p = projects::upsert(&db, "p1", "", "development", &[]).unwrap();
+        let p = projects::upsert_force(&db, "p1", "", "development", &[]).unwrap();
         (db, p.id)
     }
 

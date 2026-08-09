@@ -35,6 +35,7 @@ pub struct UpdateProjectContextSummaryArgs {
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct BuildContextArgs {
     pub project_id: String,
+    #[serde(deserialize_with = "super::flex_int::deserialize")]
     pub token_budget: i64,
     #[serde(default)]
     pub session_id: Option<String>,
@@ -53,7 +54,7 @@ pub struct CheckpointArgs {
     #[serde(default)]
     pub context_summary: Option<ContextSummary>,
     /// Budget for the associated build_context call (default: 4000).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub token_budget: Option<i64>,
 }
 

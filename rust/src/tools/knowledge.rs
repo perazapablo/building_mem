@@ -18,7 +18,7 @@ pub struct AddNoteArgs {
     pub content: String,
     pub tags: Vec<String>,
     /// Importance from 1 to 5 (default: 3).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub importance: Option<i64>,
     /// Stable semantic collision key. Same active topic updates instead of inserting.
     #[serde(default)]
@@ -30,7 +30,7 @@ pub struct AddDecisionArgs {
     pub project_id: String,
     pub decision: String,
     pub reasoning: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub importance: Option<i64>,
     #[serde(default)]
     pub topic_key: Option<String>,
@@ -43,7 +43,7 @@ pub struct AddArtifactArgs {
     #[serde(rename = "type")]
     pub artifact_type: String,
     pub content: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub importance: Option<i64>,
     #[serde(default)]
     pub topic_key: Option<String>,
@@ -55,7 +55,7 @@ pub struct SearchNotesArgs {
     #[serde(default)]
     pub project_id: Option<String>,
     /// Max results (default: 5, max: 5).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub limit: Option<i64>,
     /// If true, include obsolete notes. Default: false.
     #[serde(default)]

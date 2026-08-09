@@ -46,6 +46,37 @@ pub fn set(
     })
 }
 
+pub fn list_all(db: &Db) -> Result<Vec<WorkingState>> {
+    db.with(|conn| {
+        let mut stmt = conn.prepare(
+            "SELECT session_id, focus, open_threads, pinned_ids, updated_at
+             FROM working_state
+             ORDER BY updated_at DESC",
+        )?;
+        let rows: Vec<WorkingState> = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, String>(4)?,
+                ))
+            })?
+            .map(|res| {
+                res.map(|(session_id, focus, ot, pi, updated_at)| WorkingState {
+                    session_id,
+                    focus,
+                    open_threads: parse_json_array(&ot),
+                    pinned_ids: parse_json_array(&pi),
+                    updated_at,
+                })
+            })
+            .collect::<rusqlite::Result<_>>()?;
+        Ok(rows)
+    })
+}
+
 pub fn get(db: &Db, session_id: &str) -> Result<Option<WorkingState>> {
     db.with(|conn| {
         let row = conn

@@ -114,7 +114,7 @@ pub struct GetRelationsArgs {
     #[serde(default)]
     pub relation: Option<RelationType>,
     /// Maximum results (default: 50).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub limit: Option<i64>,
 }
 
@@ -123,7 +123,7 @@ pub struct GetPendingJudgmentsArgs {
     #[serde(default)]
     pub project_id: Option<String>,
     /// Maximum results (default: 20).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub limit: Option<i64>,
 }
 

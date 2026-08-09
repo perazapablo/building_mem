@@ -1,0 +1,167 @@
+<div class="knowledge">
+  <div class="list-pane">
+    <nav class="kind-tabs">
+      <button [class.active]="kind() === 'decisions'" (click)="setKind('decisions')">
+        Decisions <span class="c">{{ decisions().length }}</span>
+      </button>
+      <button [class.active]="kind() === 'artifacts'" (click)="setKind('artifacts')">
+        Artifacts <span class="c">{{ artifacts().length }}</span>
+      </button>
+      <button [class.active]="kind() === 'notes'" (click)="setKind('notes')">
+        Notes <span class="c">{{ notes().length }}</span>
+      </button>
+    </nav>
+
+    <div class="filters">
+      <input type="search" placeholder="filtrar texto…" [ngModel]="filter()"
+        (ngModelChange)="filter.set($event)" />
+      <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+        <option value="active">solo activos</option>
+        <option value="all">todos</option>
+      </select>
+      <label class="imp">
+        imp ≥
+        <select [ngModel]="minImportance()" (ngModelChange)="minImportance.set(+$event)">
+          <option [value]="1">1</option>
+          <option [value]="2">2</option>
+          <option [value]="3">3</option>
+          <option [value]="4">4</option>
+          <option [value]="5">5</option>
+        </select>
+      </label>
+      <span class="count-pill">{{ filtered().length }}</span>
+    </div>
+
+    <div class="cards" *ngIf="!loading() && !error()">
+      <ng-container *ngIf="kind() === 'decisions'">
+        <article *ngFor="let d of $any(filtered())"
+          class="card"
+          [class.active]="selection()?.id === d.id"
+          [class.obsolete]="d.status !== 'active'"
+          (click)="select('decision', d.id, d)">
+          <header>
+            <span class="topic" *ngIf="d.topic_key">{{ d.topic_key }}</span>
+            <span class="imp" [title]="'importance ' + d.importance">{{ importanceStars(d.importance) }}</span>
+            <span class="status" *ngIf="d.status !== 'active'">{{ d.status }}</span>
+          </header>
+          <p class="primary">{{ d.decision }}</p>
+          <p class="secondary" *ngIf="d.reasoning">{{ d.reasoning }}</p>
+          <footer>
+            <span>rev {{ d.revision_count }}</span>
+            <span>{{ d.updated_at || d.created_at }}</span>
+          </footer>
+        </article>
+      </ng-container>
+
+      <ng-container *ngIf="kind() === 'artifacts'">
+        <article *ngFor="let a of $any(filtered())"
+          class="card"
+          [class.active]="selection()?.id === a.id"
+          [class.obsolete]="a.status !== 'active'"
+          (click)="select('artifact', a.id, a)">
+          <header>
+            <span class="badge">{{ a.type }}</span>
+            <span class="topic" *ngIf="a.topic_key">{{ a.topic_key }}</span>
+            <span class="imp">{{ importanceStars(a.importance) }}</span>
+            <span class="status" *ngIf="a.status !== 'active'">{{ a.status }}</span>
+          </header>
+          <pre class="content">{{ a.content }}</pre>
+          <footer>
+            <span>rev {{ a.revision_count }}</span>
+            <span>{{ a.updated_at || a.created_at }}</span>
+          </footer>
+        </article>
+      </ng-container>
+
+      <ng-container *ngIf="kind() === 'notes'">
+        <article *ngFor="let n of $any(filtered())"
+          class="card"
+          [class.active]="selection()?.id === n.id"
+          [class.obsolete]="n.status !== 'active'"
+          (click)="select('note', n.id, n)">
+          <header>
+            <span class="topic" *ngIf="n.topic_key">{{ n.topic_key }}</span>
+            <span class="tag" *ngFor="let t of n.tags">{{ t }}</span>
+            <span class="imp">{{ importanceStars(n.importance) }}</span>
+            <span class="status" *ngIf="n.status !== 'active'">{{ n.status }}</span>
+          </header>
+          <p class="primary">{{ n.content }}</p>
+          <footer>
+            <span>rev {{ n.revision_count }}</span>
+            <span>{{ n.updated_at || n.created_at }}</span>
+          </footer>
+        </article>
+      </ng-container>
+
+      <div *ngIf="!filtered().length" class="empty">sin resultados</div>
+    </div>
+    <div *ngIf="loading()" class="status">cargando…</div>
+    <div *ngIf="error()" class="error">{{ error() }}</div>
+  </div>
+
+  <aside class="detail-pane" *ngIf="selection() as sel">
+    <header>
+      <span class="badge">{{ sel.type }}</span>
+      <span class="id">{{ sel.id }}</span>
+    </header>
+
+    <ng-container [ngSwitch]="sel.type">
+      <div *ngSwitchCase="'decision'" class="detail">
+        <h4>Decision</h4>
+        <p>{{ $any(sel.data).decision }}</p>
+        <h4>Reasoning</h4>
+        <p>{{ $any(sel.data).reasoning }}</p>
+      </div>
+      <div *ngSwitchCase="'artifact'" class="detail">
+        <h4>{{ $any(sel.data).type }}</h4>
+        <pre>{{ $any(sel.data).content }}</pre>
+      </div>
+      <div *ngSwitchCase="'note'" class="detail">
+        <h4>Note</h4>
+        <p>{{ $any(sel.data).content }}</p>
+        <div class="chips" *ngIf="$any(sel.data).tags?.length">
+          <span class="chip" *ngFor="let t of $any(sel.data).tags">{{ t }}</span>
+        </div>
+      </div>
+    </ng-container>
+
+    <section class="meta-grid">
+      <div><span>topic_key</span>{{ $any(sel.data).topic_key || '—' }}</div>
+      <div><span>status</span>{{ $any(sel.data).status }}</div>
+      <div><span>importance</span>{{ $any(sel.data).importance }}</div>
+      <div><span>revisions</span>{{ $any(sel.data).revision_count }}</div>
+      <div *ngIf="$any(sel.data).token_count !== undefined"><span>tokens</span>{{ $any(sel.data).token_count }}</div>
+      <div><span>updated</span>{{ $any(sel.data).updated_at || $any(sel.data).created_at }}</div>
+      <div *ngIf="$any(sel.data).obsolete_reason"><span>obsoleto</span>{{ $any(sel.data).obsolete_reason }}</div>
+    </section>
+
+    <section class="block">
+      <h4>Relaciones <span class="count">{{ relations().length }}</span></h4>
+      <ul *ngIf="relations().length; else noRel">
+        <li *ngFor="let r of relations()">
+          <span class="rel">{{ r.relation }}</span>
+          <span class="arrow">
+            {{ r.source_type }}:{{ r.source_id.slice(0, 8) }} → {{ r.target_type }}:{{ r.target_id.slice(0, 8) }}
+          </span>
+          <span class="judge" [class.pending]="r.judgment_status === 'pending'"
+            [class.accepted]="r.judgment_status === 'accepted'"
+            [class.rejected]="r.judgment_status === 'rejected'">
+            {{ r.judgment_status }} · {{ r.confidence }}
+          </span>
+        </li>
+      </ul>
+      <ng-template #noRel><p class="empty">sin relaciones</p></ng-template>
+    </section>
+
+    <section class="block">
+      <h4>Audit trail <span class="count">{{ audit().length }}</span></h4>
+      <ul class="audit" *ngIf="audit().length; else noAud">
+        <li *ngFor="let e of audit()">
+          <span class="op" [attr.data-op]="e.op">{{ e.op }}</span>
+          <span class="ts">{{ e.ts }}</span>
+        </li>
+      </ul>
+      <ng-template #noAud><p class="empty">sin eventos</p></ng-template>
+    </section>
+  </aside>
+</div>

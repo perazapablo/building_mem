@@ -1,0 +1,25 @@
+<div class="workspace" *ngIf="ws.current() as proj; else noProj">
+  <header class="workspace-header">
+    <div class="title">
+      <h2>{{ proj.name }}</h2>
+      <span class="type">{{ proj.project_type }}</span>
+    </div>
+    <p class="desc" *ngIf="proj.description">{{ proj.description }}</p>
+  </header>
+  <nav class="section-nav">
+    <a routerLink="overview" routerLinkActive="active">Overview</a>
+    <a routerLink="knowledge" routerLinkActive="active">Knowledge</a>
+    <a routerLink="code" routerLinkActive="active">Code</a>
+    <a routerLink="history" routerLinkActive="active">History</a>
+    <a routerLink="graph" routerLinkActive="active">Graph</a>
+    <a routerLink="context" routerLinkActive="active">Context Builder</a>
+  </nav>
+  <main class="section-body">
+    <router-outlet></router-outlet>
+  </main>
+</div>
+<ng-template #noProj>
+  <div class="empty-workspace">
+    <p>Seleccioná un proyecto a la izquierda.</p>
+  </div>
+</ng-template>

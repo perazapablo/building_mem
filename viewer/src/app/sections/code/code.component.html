@@ -1,0 +1,88 @@
+<div class="code">
+  <div class="list-pane">
+    <div class="toolbar">
+      <form (submit)="$event.preventDefault(); runSearch()" class="search-form">
+        <input type="search" placeholder="search_code_entities (FTS)…"
+          [ngModel]="query()" (ngModelChange)="query.set($event)" name="q" />
+        <button type="submit">Buscar</button>
+      </form>
+      <input type="search" placeholder="filtrar lista…"
+        [ngModel]="filter()" (ngModelChange)="filter.set($event)" />
+      <div class="kind-chips">
+        <button [class.active]="!selectedKind()" (click)="setKind(null)">all</button>
+        <button *ngFor="let k of availableKinds()"
+          [class.active]="selectedKind() === k" (click)="setKind(k)">{{ k }}</button>
+      </div>
+    </div>
+
+    <div *ngIf="loading()" class="status">cargando…</div>
+    <div *ngIf="error()" class="error">{{ error() }}</div>
+
+    <div class="groups" *ngIf="!loading() && !error()">
+      <div *ngFor="let g of groups()" class="group">
+        <header>
+          <span class="kind">{{ g.kind }}</span>
+          <span class="count">{{ g.entities.length }}</span>
+        </header>
+        <ul>
+          <li *ngFor="let e of g.entities"
+            [class.active]="selection()?.id === e.id"
+            (click)="select(e)">
+            <div class="row-main">
+              <span class="name">{{ e.qualified_name || e.name }}</span>
+              <span class="path" *ngIf="e.path">{{ e.path }}</span>
+            </div>
+            <div class="row-sub" *ngIf="e.summary">{{ e.summary }}</div>
+          </li>
+        </ul>
+      </div>
+      <div *ngIf="!groups().length" class="empty">sin code entities</div>
+    </div>
+  </div>
+
+  <aside class="detail-pane" *ngIf="selection() as e">
+    <header>
+      <span class="kind-badge">{{ e.kind }}</span>
+      <span class="name">{{ e.qualified_name || e.name }}</span>
+    </header>
+    <div class="detail-scroll">
+      <section *ngIf="e.path">
+        <h4>Path</h4>
+        <code>{{ e.path }}</code>
+      </section>
+      <section *ngIf="e.signature">
+        <h4>Signature</h4>
+        <pre>{{ e.signature }}</pre>
+      </section>
+      <section *ngIf="e.summary">
+        <h4>Summary</h4>
+        <p>{{ e.summary }}</p>
+      </section>
+      <section *ngIf="e.inputs">
+        <h4>Inputs</h4>
+        <pre>{{ e.inputs }}</pre>
+      </section>
+      <section *ngIf="e.outputs">
+        <h4>Outputs</h4>
+        <pre>{{ e.outputs }}</pre>
+      </section>
+      <section *ngIf="e.side_effects">
+        <h4>Side effects</h4>
+        <pre>{{ e.side_effects }}</pre>
+      </section>
+      <section *ngIf="e.tags?.length">
+        <h4>Tags</h4>
+        <div class="chips">
+          <span class="chip" *ngFor="let t of e.tags">{{ t }}</span>
+        </div>
+      </section>
+      <section class="meta">
+        <div><span>status</span>{{ e.status }}</div>
+        <div><span>importance</span>{{ e.importance }}</div>
+        <div><span>revisions</span>{{ e.revision_count }}</div>
+        <div><span>topic_key</span>{{ e.topic_key || '—' }}</div>
+        <div><span>updated</span>{{ e.updated_at || e.created_at }}</div>
+      </section>
+    </div>
+  </aside>
+</div>

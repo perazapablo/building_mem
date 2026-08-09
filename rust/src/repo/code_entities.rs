@@ -328,6 +328,46 @@ fn apply_update(conn: &Connection, id: &str, updates: &UpdateCodeEntity<'_>) -> 
     Ok(true)
 }
 
+pub fn list_all(db: &Db, project_id: Option<&str>) -> Result<Vec<CodeEntity>> {
+    db.with(|conn| {
+        let map = |r: &rusqlite::Row<'_>| -> rusqlite::Result<CodeEntity> {
+            Ok(CodeEntity {
+                id: r.get(0)?,
+                project_id: r.get(1)?,
+                kind: r.get(2)?,
+                name: r.get(3)?,
+                qualified_name: r.get(4)?,
+                path: r.get(5)?,
+                signature: r.get(6)?,
+                summary: r.get(7)?,
+                inputs: r.get(8)?,
+                outputs: r.get(9)?,
+                side_effects: r.get(10)?,
+                tags: parse_json_array(&r.get::<_, String>(11)?),
+                status: r.get(12)?,
+                importance: r.get(13)?,
+                topic_key: r.get(14)?,
+                revision_count: r.get(15)?,
+                obsolete_reason: r.get(16)?,
+                created_at: r.get(17)?,
+                updated_at: r.get(18)?,
+            })
+        };
+        let base = "SELECT id, project_id, kind, name, qualified_name, path, signature, summary, inputs, outputs, side_effects, tags, status, importance, topic_key, revision_count, obsolete_reason, created_at, updated_at FROM code_entities";
+        if let Some(pid) = project_id {
+            let sql = format!("{base} WHERE project_id = ? ORDER BY COALESCE(updated_at, created_at) DESC");
+            let mut stmt = conn.prepare(&sql)?;
+            let rows = stmt.query_map(params![pid], map)?.collect::<rusqlite::Result<_>>()?;
+            Ok(rows)
+        } else {
+            let sql = format!("{base} ORDER BY COALESCE(updated_at, created_at) DESC");
+            let mut stmt = conn.prepare(&sql)?;
+            let rows = stmt.query_map([], map)?.collect::<rusqlite::Result<_>>()?;
+            Ok(rows)
+        }
+    })
+}
+
 pub fn add(db: &Db, input: &AddCodeEntity<'_>) -> Result<String> {
     let normalized_importance = normalize_importance(input.importance.unwrap_or(3));
     let final_topic_key =
@@ -547,7 +587,7 @@ mod tests {
 
     fn fresh_with_project() -> (Db, String) {
         let db = Db::new_in_memory().unwrap();
-        let p = projects::upsert(&db, "p1", "", "development", &[]).unwrap();
+        let p = projects::upsert_force(&db, "p1", "", "development", &[]).unwrap();
         (db, p.id)
     }
 

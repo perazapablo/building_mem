@@ -1,0 +1,10 @@
+<section class="card">
+  <header *ngIf="title" (click)="toggle()" [class.clickable]="collapsible">
+    <span class="title">{{ title }}</span>
+    <span class="badge" *ngIf="badge !== undefined && badge !== null">{{ badge }}</span>
+    <span class="chevron" *ngIf="collapsible">{{ collapsed ? '▸' : '▾' }}</span>
+  </header>
+  <div class="body" *ngIf="!collapsed">
+    <ng-content></ng-content>
+  </div>
+</section>

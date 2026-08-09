@@ -1,0 +1,71 @@
+.shell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.8rem;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.left {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  min-width: 0;
+
+  strong {
+    color: var(--accent);
+  }
+
+  .path {
+    color: var(--fg-dim);
+    font-size: 0.8em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 60ch;
+  }
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.count {
+  background: var(--bg-elev-2);
+  color: var(--fg-dim);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.75em;
+  border: 1px solid var(--border);
+}
+
+button {
+  background: var(--bg-elev-2);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 0.8em;
+
+  &:hover {
+    background: #232323;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.error {
+  flex-basis: 100%;
+  color: var(--danger);
+  font-size: 0.8em;
+  padding: 0.2rem 0;
+}

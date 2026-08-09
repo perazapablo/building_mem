@@ -11,6 +11,14 @@ path = "src/main.rs"
 name = "migrate"
 path = "src/bin/migrate.rs"
 
+[[bin]]
+name = "cleanup-projects"
+path = "src/bin/cleanup_projects.rs"
+
+[[bin]]
+name = "verify-rules"
+path = "src/bin/verify_rules.rs"
+
 [dependencies]
 rusqlite = { version = "0.32", features = ["bundled", "trace"] }
 sha2 = "0.10"
