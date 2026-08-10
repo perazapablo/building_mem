@@ -26,6 +26,9 @@ rust/target-check/
 # Claude Code local
 .claude/settings.local.json
 
+# Harness per-session state (ephemeral, one file per session_id)
+harness/state/
+
 # Old Node leftovers (repo root only)
 /package.json
 /package-lock.json
