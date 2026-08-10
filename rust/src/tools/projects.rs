@@ -7,7 +7,7 @@ use rmcp::{
 };
 use serde::Deserialize;
 
-use crate::repo::projects;
+use crate::repo::{project_paths, projects};
 
 use super::{json_result, repo_error, MemoryService};
 
@@ -56,6 +56,33 @@ pub struct ListProjectsArgs {}
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct GetProjectArgs {
     pub project_id: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ResolveProjectByPathArgs {
+    /// Filesystem path (e.g. process CWD). Canonicalised server-side
+    /// (lowercase, forward slashes, no trailing slash) before matching.
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct AddProjectPathArgs {
+    pub project_id: String,
+    /// Filesystem path to bind. Idempotent when re-adding the same path
+    /// under the same project; errors if the path is already bound to a
+    /// different project.
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ListProjectPathsArgs {
+    pub project_id: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct RemoveProjectPathArgs {
+    /// Path to unbind. Matched by canonical form.
+    pub path: String,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -118,6 +145,50 @@ impl MemoryService {
     ) -> Result<CallToolResult, ErrorData> {
         let p = projects::get(&self.db, &args.project_id).map_err(repo_error)?;
         json_result(&p)
+    }
+
+    #[tool(
+        description = "Resolve a filesystem path to a project_id. Matches by canonical form \
+            (lowercase, forward slashes, no trailing slash). Returns null when no binding exists — \
+            the harness should then run its bind flow. Never mutates."
+    )]
+    pub async fn resolve_project_by_path(
+        &self,
+        Parameters(args): Parameters<ResolveProjectByPathArgs>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let resolved = project_paths::resolve(&self.db, &args.path).map_err(repo_error)?;
+        json_result(&resolved)
+    }
+
+    #[tool(
+        description = "Bind a filesystem path to a project. Idempotent for the same (project, path) \
+            pair. Errors if the path is already bound to a different project. Callers submit the \
+            raw path; canonicalisation is server-side."
+    )]
+    pub async fn add_project_path(
+        &self,
+        Parameters(args): Parameters<AddProjectPathArgs>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let row = project_paths::add(&self.db, &args.project_id, &args.path).map_err(repo_error)?;
+        json_result(&row)
+    }
+
+    #[tool(description = "List all filesystem paths bound to a project.")]
+    pub async fn list_project_paths(
+        &self,
+        Parameters(args): Parameters<ListProjectPathsArgs>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let rows = project_paths::list_for_project(&self.db, &args.project_id).map_err(repo_error)?;
+        json_result(&rows)
+    }
+
+    #[tool(description = "Unbind a filesystem path from any project. Returns {removed: bool}.")]
+    pub async fn remove_project_path(
+        &self,
+        Parameters(args): Parameters<RemoveProjectPathArgs>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let removed = project_paths::remove(&self.db, &args.path).map_err(repo_error)?;
+        json_result(&serde_json::json!({ "removed": removed }))
     }
 
     #[tool(

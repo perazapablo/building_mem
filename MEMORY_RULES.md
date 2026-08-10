@@ -36,6 +36,46 @@ When in doubt, prefer reusing an existing project over creating a new one. Split
 
 If two columns fit, pick the more specific one (`add_decision` > `add_note`).
 
+## Path binding (project ↔ filesystem)
+
+The harness maps a checkout to a `project_id` via `project_paths` (multi-path per project, canonicalized: lowercase, forward slashes, no trailing slash). Match is exact — no prefix/subdir fallback. Trabajar con `padre/hijo-1` y `padre/hijo-2` es lo esperado: cada uno se bindea aparte al mismo proyecto.
+
+| Purpose                                | Tool                          |
+|----------------------------------------|-------------------------------|
+| Detect project from CWD                | `resolve_project_by_path`     |
+| Bind a checkout to a project           | `add_project_path`            |
+| Inspect bindings                       | `list_project_paths`          |
+| Unbind                                 | `remove_project_path`         |
+
+The harness calls `resolve_project_by_path(CWD)` at session start. If null → run the bind flow before any other project-scoped work.
+
+## Threads (project-scoped, explicit lifecycle)
+
+Threads live at project level with `status ∈ {open, done, dropped, stale}`. They survive across sessions — the only way to change status is an explicit tool call. **Do not** try to model threads via `set_working_state.open_threads` (removed).
+
+| Action                                             | Tool                     |
+|----------------------------------------------------|--------------------------|
+| Open a new TODO on the project                     | `open_thread`            |
+| Close it explicitly                                | `close_thread` (`done`/`dropped`) |
+| Signal activity on an open thread                  | `touch_thread`           |
+| List current open work                             | `list_open_threads`      |
+| List with status filter or full history            | `list_project_threads`   |
+| Archive by inactivity (harness job, 30d default)   | `mark_stale_threads`     |
+
+Rule of thumb: si aparece un TODO real durante el trabajo → `open_thread`. Si algo se termina → `close_thread`. No dejar threads abiertos sin razón — la visibilidad de "qué queda pendiente" depende de que los cerrados estén marcados.
+
+## Session focus (single value per session)
+
+Foco es una entidad de primera clase en `session_focus`, decoupled de `working_state`.
+
+| Action                                         | Tool                              |
+|------------------------------------------------|-----------------------------------|
+| Set/replace focus for current session          | `set_focus`                       |
+| Read focus of a session                        | `get_focus`                       |
+| Most-recent focus across a project's sessions  | `get_latest_focus_for_project`    |
+
+`set_working_state` sigue existiendo pero solo persiste `focus + pinned_ids`. El campo `open_threads` fue removido — usar `open_thread` / `close_thread`.
+
 ## Structured summaries (fill, do not invent fields)
 
 ```json
@@ -46,7 +86,21 @@ SessionSummary: {
   "artifacts_ref": [],
   "pending": [],
   "blockers": [],
+  "threads_closed": [],
+  "stats": null,
   "notes": null
+}
+
+SessionStats: {
+  "duration_min": 0,
+  "turns": 0,
+  "commits": [],
+  "files_edited": [{"path": "", "edits": 0}],
+  "bash_effects": [{"cmd": "", "exit": 0}],
+  "memory_writes": {"add_decision": 0},
+  "code_entities_touched": [],
+  "tool_errors": 0,
+  "last_focus": ""
 }
 
 ContextSummary: {
@@ -57,6 +111,8 @@ ContextSummary: {
   "notes": null
 }
 ```
+
+`stats` es mecánico: lo llena el harness desde el event log (tool calls, hooks, git). El modelo **no** debe escribirlo. `threads_closed` son ids de `project_threads` cerrados durante la sesión.
 
 `decisions_ref` and `artifacts_ref` are IDs returned by `add_decision` / `add_artifact`.
 Never duplicate the content of a decision inside the summary — reference it.

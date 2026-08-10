@@ -23,6 +23,9 @@ test.js
 rust/target/
 rust/target-check/
 
+# Claude Code local
+.claude/settings.local.json
+
 # Old Node leftovers (repo root only)
 /package.json
 /package-lock.json

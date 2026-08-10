@@ -6,6 +6,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SessionSummary {
@@ -21,8 +22,58 @@ pub struct SessionSummary {
     pub pending: Vec<String>,
     #[serde(default)]
     pub blockers: Vec<String>,
+    /// Project thread ids closed during this session.
+    #[serde(default)]
+    pub threads_closed: Vec<String>,
+    /// Mechanical event-log stats collected by the harness. Never authored
+    /// by the model — always derived from tool call / hook telemetry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stats: Option<SessionStats>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct SessionStats {
+    /// Wall-clock session duration in minutes (start → end).
+    #[serde(default)]
+    pub duration_min: i64,
+    /// Number of model turns (user + assistant pairs).
+    #[serde(default)]
+    pub turns: i64,
+    /// Git commit hashes created inside the session window.
+    #[serde(default)]
+    pub commits: Vec<String>,
+    /// Files edited (Write/Edit) with edit count per path.
+    #[serde(default)]
+    pub files_edited: Vec<FileEdit>,
+    /// Bash commands with side effects and their exit codes.
+    #[serde(default)]
+    pub bash_effects: Vec<BashEffect>,
+    /// Count of memory-writing MCP tool calls, keyed by tool name.
+    #[serde(default)]
+    pub memory_writes: BTreeMap<String, i64>,
+    /// Ids of code_entities read or updated during the session.
+    #[serde(default)]
+    pub code_entities_touched: Vec<String>,
+    /// Count of tool call errors seen (any tool, any kind).
+    #[serde(default)]
+    pub tool_errors: i64,
+    /// Last `set_focus` value seen inside this session, if any.
+    #[serde(default)]
+    pub last_focus: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct FileEdit {
+    pub path: String,
+    pub edits: i64,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct BashEffect {
+    pub cmd: String,
+    pub exit: i32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]

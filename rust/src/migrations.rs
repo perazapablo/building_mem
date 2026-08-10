@@ -168,6 +168,8 @@ const MIGRATION_5_SQL: &str = include_str!("migrations_sql/005_context_intellige
 const MIGRATION_6_SQL: &str = include_str!("migrations_sql/006_code_entities_fts.sql");
 const MIGRATION_7_FTS_REBUILD: &str = include_str!("migrations_sql/007_fts_rebuild.sql");
 const MIGRATION_8_SQL: &str = include_str!("migrations_sql/008_memory_relations.sql");
+const MIGRATION_10_SQL: &str = include_str!("migrations_sql/010_project_paths_and_threads.sql");
+const MIGRATION_11_SQL: &str = include_str!("migrations_sql/011_session_focus.sql");
 
 pub fn all() -> Vec<Migration> {
     vec![
@@ -180,6 +182,8 @@ pub fn all() -> Vec<Migration> {
         Migration { version: 7, name: "memory_identity_topic_key", sql: "", post: Some(run_post_v7) },
         Migration { version: 8, name: "memory_relations", sql: MIGRATION_8_SQL, post: None },
         Migration { version: 9, name: "decision_artifact_tags", sql: "", post: Some(run_post_v9) },
+        Migration { version: 10, name: "project_paths_and_threads", sql: MIGRATION_10_SQL, post: None },
+        Migration { version: 11, name: "session_focus", sql: MIGRATION_11_SQL, post: None },
     ]
 }
 

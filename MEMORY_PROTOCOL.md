@@ -26,7 +26,11 @@ Every tool is scoped by `project_id` — that is the primary anchor. If you don'
 - `search_notes` / `search_code_entities` — narrower FTS when the type is known.
 - `get_note` / `get_artifact` / `get_code_entity` — full payload by id, when a snippet is not enough.
 - `get_related` / `get_code_entity_context` — graph expansion around a known entity.
-- `get_working_state(session_id)` — pinned ids and current focus for a session.
+- `get_working_state(session_id)` — pinned ids and legacy focus mirror for a session.
+- `get_focus(session_id)` / `get_latest_focus_for_project(project_id)` — focus as a first-class entity (from `session_focus`).
+- `resolve_project_by_path(path)` — map a filesystem path to a `project_id` for the harness bootstrap.
+- `list_project_paths(project_id)` — inspect current path bindings.
+- `list_open_threads(project_id)` / `list_project_threads(project_id, status?)` — real state of pending work (from `project_threads`).
 
 Default excludes obsolete. `include_obsolete=true` only for history/audit/recovery.
 
@@ -36,7 +40,12 @@ Default excludes obsolete. `include_obsolete=true` only for history/audit/recove
 - `update_*` — revise an existing entity by id. `revision_count` increments automatically.
 - `mark_obsolete(type, id, reason)` — supersede without deleting. Preferred over `delete_*` for anything with history.
 - `delete_*` — for accidents and re-keys, not everyday cleanup. Requires user confirmation (harness `ask` gate).
-- `set_working_state(session_id, focus, open_threads, pinned_ids)` — call when focus pivots, not per message. It shapes future `build_context` calls.
+- `set_focus(session_id, project_id, focus)` — atomic focus update. Preferred over `set_working_state` when you only want to change focus. The harness may require this before persistent actions.
+- `set_working_state(session_id, focus, pinned_ids)` — persists focus mirror + pinned ids. `open_threads` was removed — use threads tools instead.
+- `open_thread(project_id, thread, session_id)` — when a real TODO appears during work. Returns a thread id.
+- `close_thread(thread_id, status='done'|'dropped', reason?, session_id)` — explicit closure. Preferred over silence.
+- `touch_thread(thread_id)` — bump `updated_at` on an open thread from a related decision/artifact so it stays out of stale territory.
+- `add_project_path(project_id, path)` — bind a checkout. Idempotent per (project, path).
 
 `importance` is 1–5. Most facts are 3. Reserve 5 for project-shaping decisions or critical constraints — it drives ranking in `build_context`.
 
@@ -69,13 +78,27 @@ The schemas are fixed and validated. Fill the fields. Do not invent.
 
 ```json
 SessionSummary {
-  "goal":          "string — what this session was trying to accomplish",
-  "outcome":       "string — what was actually accomplished",
-  "decisions_ref": ["decision_id", ...],
-  "artifacts_ref": ["artifact_id", ...],
-  "pending":       ["open thread or unresolved work", ...],
-  "blockers":      ["active blocker", ...],
-  "notes":         "string | null — optional free-form nuance, keep short"
+  "goal":           "string — what this session was trying to accomplish",
+  "outcome":        "string — what was actually accomplished",
+  "decisions_ref":  ["decision_id", ...],
+  "artifacts_ref":  ["artifact_id", ...],
+  "pending":        ["open thread or unresolved work", ...],
+  "blockers":       ["active blocker", ...],
+  "threads_closed": ["thread_id", ...],
+  "stats":          SessionStats | null,
+  "notes":          "string | null — optional free-form nuance, keep short"
+}
+
+SessionStats {
+  "duration_min":          "int — wall-clock minutes",
+  "turns":                 "int — user+assistant turns",
+  "commits":               ["git sha", ...],
+  "files_edited":          [{"path": "string", "edits": "int"}, ...],
+  "bash_effects":          [{"cmd": "string", "exit": "int"}, ...],
+  "memory_writes":         {"add_decision": "int", "add_artifact": "int", ...},
+  "code_entities_touched": ["code_entity_id", ...],
+  "tool_errors":           "int",
+  "last_focus":            "string — last set_focus value seen"
 }
 
 ContextSummary {
@@ -86,6 +109,8 @@ ContextSummary {
   "notes":         "string | null — optional, keep short"
 }
 ```
+
+`stats` is **mechanical**: filled by the harness from the event log, never by the model. `threads_closed` are `project_threads.id` values closed during the session. Keep `pending` short — the real pending is `list_open_threads(project_id)`; `pending` in the summary is for items that don't warrant a proper thread.
 
 Reference `decision_id` and `artifact_id` returned by their respective `add_*`. **Do not duplicate** the content of a decision into `notes` — it bloats the summary and forks the source of truth.
 
@@ -128,10 +153,14 @@ When inspecting current code and finding it contradicts a stored memory:
 
 ## 7. Cadence
 
-- `set_working_state`: when **focus pivots**. Not per message, not per file read. If you find yourself updating it 10 times an hour, you're using it as a scratch pad.
+- `set_focus`: once per real focus pivot. Cheaper and clearer than a full `set_working_state`.
+- `open_thread`: the moment a real TODO appears during work. Do not batch or pre-plan a wall of speculative threads.
+- `close_thread`: as soon as a thread is done or dropped. A thread that stays open past its actual life becomes a `stale` entry that clutters `list_open_threads`.
+- `touch_thread`: when a decision/artifact addresses an open thread — keeps it out of the 30-day stale window.
 - `add_*`: at the moment of the fact, not at the end. Interrupt resilience is the whole point.
-- `checkpoint`: at the end of a **logical stage**, not by clock. End of a refactor. End of a debugging session. End of a feature. Not "every hour" — that produces noisy summaries.
-- `build_context`: at the start of a session, and again if the project pivots dramatically (e.g. user says "actually let's work on X now" mid-session).
+- `checkpoint` / `save_session`: for the mechanical save flow, the harness fires on `SessionEnd`. Otherwise call `checkpoint` at the end of a **logical stage** — not by clock.
+- `build_context`: at the start of a session (via harness), and again if the project pivots dramatically mid-session.
+- `mark_stale_threads`: harness job, once a day per project, 30-day cutoff. Never called by the model.
 
 ## 8. Multi-client and concurrency
 

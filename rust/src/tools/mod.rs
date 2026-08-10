@@ -25,6 +25,7 @@ pub mod projects;
 pub mod relations;
 pub mod search;
 pub mod sessions;
+pub mod threads;
 
 #[derive(Clone)]
 pub struct MemoryService {
@@ -43,7 +44,8 @@ impl MemoryService {
             + Self::relations_router()
             + Self::graph_router()
             + Self::context_router()
-            + Self::search_router();
+            + Self::search_router()
+            + Self::threads_router();
         Self { db, tool_router: router }
     }
 }

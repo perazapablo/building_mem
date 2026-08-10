@@ -1,7 +1,10 @@
-//! Working state per session: focus, open threads, pinned IDs.
+//! Working state per session: pinned IDs (and legacy focus mirror).
 //!
-//! Upsert by `session_id` (PK). `build_context` reads pinned IDs from here
-//! to prioritise relevant entities within the token budget.
+//! Focus now lives in `session_focus` (see `repo::session_focus`) and
+//! threads live in `project_threads` (see `repo::project_threads`). This
+//! module keeps `pinned_ids` and a legacy `focus` column read for
+//! back-compat with `build_context`, but does not accept or return
+//! `open_threads` anymore — callers must use `open_thread` / `close_thread`.
 
 use anyhow::Result;
 use rusqlite::{params, OptionalExtension};
@@ -14,33 +17,20 @@ use super::{parse_json_array, serialize_json_array, Db};
 pub struct WorkingState {
     pub session_id: String,
     pub focus: String,
-    pub open_threads: Vec<String>,
     pub pinned_ids: Vec<String>,
     pub updated_at: String,
 }
 
-pub fn set(
-    db: &Db,
-    session_id: &str,
-    focus: &str,
-    open_threads: &[String],
-    pinned_ids: &[String],
-) -> Result<()> {
+pub fn set(db: &Db, session_id: &str, focus: &str, pinned_ids: &[String]) -> Result<()> {
     db.with(|conn| {
         conn.execute(
             "INSERT INTO working_state (session_id, focus, open_threads, pinned_ids, updated_at)
-             VALUES (?, ?, ?, ?, datetime('now'))
+             VALUES (?, ?, '[]', ?, datetime('now'))
              ON CONFLICT(session_id) DO UPDATE SET
-               focus = excluded.focus,
-               open_threads = excluded.open_threads,
-               pinned_ids = excluded.pinned_ids,
-               updated_at = datetime('now')",
-            params![
-                session_id,
-                focus,
-                serialize_json_array(open_threads),
-                serialize_json_array(pinned_ids)
-            ],
+               focus       = excluded.focus,
+               pinned_ids  = excluded.pinned_ids,
+               updated_at  = datetime('now')",
+            params![session_id, focus, serialize_json_array(pinned_ids)],
         )?;
         Ok(())
     })
@@ -49,7 +39,7 @@ pub fn set(
 pub fn list_all(db: &Db) -> Result<Vec<WorkingState>> {
     db.with(|conn| {
         let mut stmt = conn.prepare(
-            "SELECT session_id, focus, open_threads, pinned_ids, updated_at
+            "SELECT session_id, focus, pinned_ids, updated_at
              FROM working_state
              ORDER BY updated_at DESC",
         )?;
@@ -60,14 +50,12 @@ pub fn list_all(db: &Db) -> Result<Vec<WorkingState>> {
                     r.get::<_, String>(1)?,
                     r.get::<_, String>(2)?,
                     r.get::<_, String>(3)?,
-                    r.get::<_, String>(4)?,
                 ))
             })?
             .map(|res| {
-                res.map(|(session_id, focus, ot, pi, updated_at)| WorkingState {
+                res.map(|(session_id, focus, pi, updated_at)| WorkingState {
                     session_id,
                     focus,
-                    open_threads: parse_json_array(&ot),
                     pinned_ids: parse_json_array(&pi),
                     updated_at,
                 })
@@ -81,7 +69,7 @@ pub fn get(db: &Db, session_id: &str) -> Result<Option<WorkingState>> {
     db.with(|conn| {
         let row = conn
             .query_row(
-                "SELECT session_id, focus, open_threads, pinned_ids, updated_at
+                "SELECT session_id, focus, pinned_ids, updated_at
                  FROM working_state WHERE session_id = ?",
                 params![session_id],
                 |r| {
@@ -90,15 +78,13 @@ pub fn get(db: &Db, session_id: &str) -> Result<Option<WorkingState>> {
                         r.get::<_, String>(1)?,
                         r.get::<_, String>(2)?,
                         r.get::<_, String>(3)?,
-                        r.get::<_, String>(4)?,
                     ))
                 },
             )
             .optional()?;
-        Ok(row.map(|(session_id, focus, ot, pi, updated_at)| WorkingState {
+        Ok(row.map(|(session_id, focus, pi, updated_at)| WorkingState {
             session_id,
             focus,
-            open_threads: parse_json_array(&ot),
             pinned_ids: parse_json_array(&pi),
             updated_at,
         }))
@@ -151,16 +137,14 @@ mod tests {
     #[test]
     fn set_creates_then_updates() {
         let db = fresh();
-        set(&db, "s1", "focus-1", &["t1".into()], &["p1".into()]).unwrap();
+        set(&db, "s1", "focus-1", &["p1".into()]).unwrap();
         let w = get(&db, "s1").unwrap().unwrap();
         assert_eq!(w.focus, "focus-1");
-        assert_eq!(w.open_threads, vec!["t1".to_string()]);
         assert_eq!(w.pinned_ids, vec!["p1".to_string()]);
 
-        set(&db, "s1", "focus-2", &[], &["p2".into(), "p3".into()]).unwrap();
+        set(&db, "s1", "focus-2", &["p2".into(), "p3".into()]).unwrap();
         let w = get(&db, "s1").unwrap().unwrap();
         assert_eq!(w.focus, "focus-2");
-        assert!(w.open_threads.is_empty());
         assert_eq!(w.pinned_ids, vec!["p2".to_string(), "p3".into()]);
     }
 
@@ -173,8 +157,8 @@ mod tests {
     #[test]
     fn pinned_ids_per_session() {
         let db = fresh();
-        set(&db, "s1", "", &[], &["a".into(), "b".into()]).unwrap();
-        set(&db, "s2", "", &[], &["b".into(), "c".into()]).unwrap();
+        set(&db, "s1", "", &["a".into(), "b".into()]).unwrap();
+        set(&db, "s2", "", &["b".into(), "c".into()]).unwrap();
 
         let p1 = pinned_ids(&db, Some("s1")).unwrap();
         assert_eq!(p1, ["a".to_string(), "b".into()].into_iter().collect());

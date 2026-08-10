@@ -527,6 +527,7 @@ pub struct CheckpointResponse {
 fn generate_context_summary(
     session_summary: Option<&SessionSummary>,
     working: &Option<working_state::WorkingState>,
+    open_threads: &[String],
     previous: Option<&ContextSummary>,
 ) -> ContextSummary {
     let mut pending: Vec<String> = Vec::new();
@@ -543,10 +544,8 @@ fn generate_context_summary(
             push_unique(p, &mut pending, &mut seen);
         }
     }
-    if let Some(w) = working {
-        for t in &w.open_threads {
-            push_unique(t, &mut pending, &mut seen);
-        }
+    for t in open_threads {
+        push_unique(t, &mut pending, &mut seen);
     }
     if let Some(p) = previous {
         for w in &p.pending_work {
@@ -593,6 +592,11 @@ pub fn checkpoint(
     let token_budget = options.token_budget.unwrap_or(4000);
     let context = build_context(db, project_id, token_budget, Some(session_id), None)?;
     let working = working_state::get(db, session_id)?;
+    let open_thread_texts: Vec<String> =
+        crate::repo::project_threads::list_by_project(db, project_id, Some("open"))?
+            .into_iter()
+            .map(|t| t.thread)
+            .collect();
 
     sessions::update_checkpoint(db, session_id, project_id, options.session_summary.as_ref())?;
 
@@ -607,7 +611,7 @@ pub fn checkpoint(
             let previous = project_before
                 .as_ref()
                 .and_then(|p| p.context_summary.as_ref());
-            generate_context_summary(session_summary_ref, &working, previous)
+            generate_context_summary(session_summary_ref, &working, &open_thread_texts, previous)
         }
     };
     projects::update_context_summary(db, project_id, &context_summary)?;
@@ -702,7 +706,7 @@ mod tests {
         )
         .unwrap();
         let session_id = _sess.clone();
-        working_state::set(&db, &session_id, "focus", &[], &[pinned_id.clone()]).unwrap();
+        working_state::set(&db, &session_id, "focus", &[pinned_id.clone()]).unwrap();
 
         let r = build_context(&db, &pid, 4000, Some(&session_id), None).unwrap();
         assert_eq!(r.items[0].id(), pinned_id);
@@ -720,7 +724,8 @@ mod tests {
     fn checkpoint_persists_generated_summary_when_missing() {
         let (db, pid) = fresh_with_project();
         let sid = sessions::save(&db, "s1", &SessionSummary::default(), Some(&pid)).unwrap();
-        working_state::set(&db, &sid, "now working on X", &["thread1".into()], &[]).unwrap();
+        working_state::set(&db, &sid, "now working on X", &[]).unwrap();
+        crate::repo::project_threads::open(&db, &pid, "thread1", &sid).unwrap();
         let cp = checkpoint(&db, &sid, &pid, &CheckpointOptions::default()).unwrap();
         assert!(cp.used_generated_context_summary);
         let p = projects::get(&db, &pid).unwrap().unwrap();

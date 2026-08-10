@@ -23,10 +23,13 @@ pub mod identity;
 pub mod links;
 pub mod mutations;
 pub mod notes;
+pub mod project_paths;
+pub mod project_threads;
 pub mod projects;
 pub mod relations;
 pub mod search;
 pub mod serialize;
+pub mod session_focus;
 pub mod sessions;
 pub mod working_state;
 
