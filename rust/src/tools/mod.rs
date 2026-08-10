@@ -19,6 +19,7 @@ pub mod code;
 pub mod context;
 pub mod flex_int;
 pub mod graph;
+pub mod harness;
 pub mod knowledge;
 pub mod mutations;
 pub mod projects;
@@ -45,7 +46,8 @@ impl MemoryService {
             + Self::graph_router()
             + Self::context_router()
             + Self::search_router()
-            + Self::threads_router();
+            + Self::threads_router()
+            + Self::harness_router();
         Self { db, tool_router: router }
     }
 }

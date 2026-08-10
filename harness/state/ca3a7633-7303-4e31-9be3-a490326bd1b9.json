@@ -1,0 +1,20 @@
+{
+  "session_id": "ca3a7633-7303-4e31-9be3-a490326bd1b9",
+  "project_id": "c6ab7557-3aec-4bfa-a7fc-65264626f03c",
+  "started_at": "2026-08-10T19:18:55.184Z",
+  "last_update_at": "2026-08-10T19:53:01.535Z",
+  "turns": 10,
+  "commits": 0,
+  "files_edited": [
+    "C:\\Users\\Desarrollos\\.config\\agent-rules\\skills\\harness\\SKILL.md",
+    "C:\\Users\\Desarrollos\\.config\\mcp-learning\\rust\\src\\bin\\verify_rules.rs",
+    "C:\\Users\\Desarrollos\\.config\\mcp-learning\\rust\\src\\tools\\harness.rs",
+    "C:\\Users\\Desarrollos\\.config\\mcp-learning\\harness\\stats.cjs",
+    "C:\\Users\\Desarrollos\\.config\\mcp-learning\\rust\\src\\tools\\mod.rs",
+    "C:\\Users\\Desarrollos\\.claude\\settings.json"
+  ],
+  "bash_effects": 6,
+  "memory_writes": 1,
+  "code_entities_touched": 0,
+  "tool_errors": 0
+}

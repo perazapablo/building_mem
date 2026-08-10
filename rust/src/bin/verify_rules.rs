@@ -360,7 +360,7 @@ fn load_claude_hooks(path: &Path) -> Result<Vec<PathBuf>> {
     let raw = fs::read_to_string(path)?;
     let v: Value = serde_json::from_str(&raw)?;
     let mut out = Vec::new();
-    let events = ["SessionStart", "PreToolUse", "PostToolUse"];
+    let events = ["SessionStart", "PreToolUse", "PostToolUse", "UserPromptSubmit", "SessionEnd", "Stop", "SubagentStop", "Notification"];
     for ev in events {
         let Some(arr) = v.get("hooks").and_then(|h| h.get(ev)).and_then(|x| x.as_array()) else { continue };
         for group in arr {
