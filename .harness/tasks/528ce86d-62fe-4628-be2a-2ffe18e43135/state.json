@@ -1,0 +1,32 @@
+{
+  "task_id": "528ce86d-62fe-4628-be2a-2ffe18e43135",
+  "title": "viewer decision_records + stats",
+  "workflow": "estandar",
+  "workflow_suggested": "estandar",
+  "workflow_chosen_by": "human",
+  "status": "done",
+  "phase": "exploration",
+  "phase_entered_at": "2026-08-24T19:01:25.304Z",
+  "pending_transition": null,
+  "artifacts": {
+    "research": "research.md",
+    "plan": "plan.md"
+  },
+  "diff_scope": null,
+  "commands": {},
+  "escalations": [],
+  "transitions": [
+    {
+      "from": null,
+      "to": "exploration",
+      "at": "2026-08-24T19:01:25.304Z",
+      "kind": "advance"
+    }
+  ],
+  "project_id": "desconocido",
+  "session_ids": [
+    "dca61b79-d313-4d5e-aeb1-5342177d5258"
+  ],
+  "created_at": "2026-08-24T19:01:25.304Z",
+  "updated_at": "2026-08-25T13:55:09.089Z"
+}

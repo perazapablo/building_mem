@@ -1,0 +1,40 @@
+{
+  "task_id": "viewer-migrar-decisiones-de-legacy-a-decision-records",
+  "title": "viewer: migrar decisiones de legacy a decision_records",
+  "workflow": "estandar",
+  "workflow_suggested": "estandar",
+  "workflow_chosen_by": "human",
+  "status": "active",
+  "phase": "planning",
+  "phase_entered_at": "2026-09-03T17:31:43.565Z",
+  "pending_transition": "implementation",
+  "artifacts": {
+    "research": "research.md",
+    "plan": "plan.md"
+  },
+  "diff_scope": null,
+  "scope_amendments": [],
+  "commands": {},
+  "escalations": [],
+  "transitions": [
+    {
+      "from": null,
+      "to": "exploration",
+      "at": "2026-09-03T07:40:11.837Z",
+      "kind": "advance"
+    },
+    {
+      "from": "exploration",
+      "to": "planning",
+      "at": "2026-09-03T17:31:43.565Z",
+      "kind": "advance"
+    }
+  ],
+  "project_id": "desconocido",
+  "session_ids": [
+    "cef5a61a-e15a-4c16-9ba0-b37d7d701fa4",
+    "bc6e8e8a-58d0-4112-b3a9-6037124dba67"
+  ],
+  "created_at": "2026-09-03T07:40:11.837Z",
+  "updated_at": "2026-09-03T18:15:04.376Z"
+}
