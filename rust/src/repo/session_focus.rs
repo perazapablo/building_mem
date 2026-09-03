@@ -14,6 +14,14 @@ pub struct SessionFocus {
     pub focus: String,
     pub set_at: String,
     pub updated_at: String,
+    /// true = derivado automáticamente del prompt del usuario por el hook de
+    /// arranque de turno; false = el agente lo declaró con set_focus.
+    ///
+    /// La distinción existe porque el focus automático eliminó el gate que
+    /// cobraba un turno por cada cambio chico, pero un focus derivado no vale
+    /// lo mismo que uno declarado al leer el historial: guardar cuál es cuál
+    /// mantiene esa diferencia visible en vez de fingir que no existe.
+    pub provisional: bool,
 }
 
 pub fn set(db: &Db, session_id: &str, project_id: &str, focus: &str) -> Result<SessionFocus> {
@@ -22,12 +30,15 @@ pub fn set(db: &Db, session_id: &str, project_id: &str, focus: &str) -> Result<S
         anyhow::bail!("focus is empty");
     }
     db.with(|conn| {
+        // provisional = 0 siempre: este es el camino explícito. Un set_focus
+        // del agente asciende un focus provisional a declarado.
         conn.execute(
-            "INSERT INTO session_focus (session_id, project_id, focus)
-             VALUES (?, ?, ?)
+            "INSERT INTO session_focus (session_id, project_id, focus, provisional)
+             VALUES (?, ?, ?, 0)
              ON CONFLICT(session_id) DO UPDATE SET
                focus       = excluded.focus,
                project_id  = excluded.project_id,
+               provisional = 0,
                updated_at  = datetime('now')",
             params![session_id, project_id, focus],
         )?;
@@ -40,7 +51,7 @@ pub fn get(db: &Db, session_id: &str) -> Result<Option<SessionFocus>> {
     db.with(|conn| {
         let row = conn
             .query_row(
-                "SELECT session_id, project_id, focus, set_at, updated_at
+                "SELECT session_id, project_id, focus, set_at, updated_at, provisional
                  FROM session_focus WHERE session_id = ?",
                 params![session_id],
                 |r| {
@@ -50,6 +61,7 @@ pub fn get(db: &Db, session_id: &str) -> Result<Option<SessionFocus>> {
                         focus: r.get(2)?,
                         set_at: r.get(3)?,
                         updated_at: r.get(4)?,
+                        provisional: r.get(5)?,
                     })
                 },
             )
@@ -62,7 +74,7 @@ pub fn get_latest_for_project(db: &Db, project_id: &str) -> Result<Option<Sessio
     db.with(|conn| {
         let row = conn
             .query_row(
-                "SELECT session_id, project_id, focus, set_at, updated_at
+                "SELECT session_id, project_id, focus, set_at, updated_at, provisional
                  FROM session_focus
                  WHERE project_id = ?
                  ORDER BY updated_at DESC
@@ -75,6 +87,7 @@ pub fn get_latest_for_project(db: &Db, project_id: &str) -> Result<Option<Sessio
                         focus: r.get(2)?,
                         set_at: r.get(3)?,
                         updated_at: r.get(4)?,
+                        provisional: r.get(5)?,
                     })
                 },
             )
@@ -124,6 +137,34 @@ mod tests {
         let latest = get_latest_for_project(&db, "p1").unwrap().unwrap();
         assert_eq!(latest.session_id, "s2");
         assert_eq!(latest.focus, "b");
+    }
+
+    #[test]
+    fn set_marca_declarado() {
+        let db = fresh();
+        let f = set(&db, "s1", "p1", "impl X").unwrap();
+        assert!(!f.provisional, "un set_focus explícito nunca es provisional");
+    }
+
+    #[test]
+    fn set_asciende_un_focus_provisional() {
+        // El hook deja un focus derivado del prompt; el agente después declara
+        // el suyo. El explícito gana y deja de ser provisional.
+        let db = fresh();
+        db.with(|conn| {
+            conn.execute(
+                "INSERT INTO session_focus (session_id, project_id, focus, provisional)
+                 VALUES ('s1', 'p1', 'del prompt', 1)",
+                [],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        assert!(get(&db, "s1").unwrap().unwrap().provisional);
+
+        let f = set(&db, "s1", "p1", "declarado a mano").unwrap();
+        assert!(!f.provisional);
+        assert_eq!(f.focus, "declarado a mano");
     }
 
     #[test]

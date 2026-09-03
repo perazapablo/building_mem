@@ -64,6 +64,20 @@ pub enum SearchAllResult {
         revision_count: i64,
         obsolete_reason: Option<String>,
     },
+    DecisionRecord {
+        id: String,
+        project_id: String,
+        title: String,
+        summary: String,
+        status: String,
+        created_at: String,
+        rank: f64,
+        topic_key: String,
+        origin: String,
+        confidence: String,
+        phase: Option<String>,
+        superseded_by: Option<String>,
+    },
     Artifact {
         id: String,
         project_id: String,
@@ -110,6 +124,7 @@ impl SearchAllResult {
         match self {
             SearchAllResult::Note { rank, .. }
             | SearchAllResult::Decision { rank, .. }
+            | SearchAllResult::DecisionRecord { rank, .. }
             | SearchAllResult::Artifact { rank, .. }
             | SearchAllResult::CodeEntity { rank, .. } => *rank,
         }
@@ -121,6 +136,9 @@ impl SearchAllResult {
             | SearchAllResult::Decision { importance, .. }
             | SearchAllResult::Artifact { importance, .. }
             | SearchAllResult::CodeEntity { importance, .. } => *importance,
+            // decision_records dropped importance by design; rank ties
+            // resolve as a middle-importance entry.
+            SearchAllResult::DecisionRecord { .. } => 3,
         }
     }
 }
@@ -156,6 +174,7 @@ pub fn search_all(
         let mut results: Vec<SearchAllResult> = Vec::new();
         results.extend(query_notes(conn, &fts, project_id, limited, include_obsolete)?);
         results.extend(query_decisions(conn, &fts, project_id, limited, include_obsolete)?);
+        results.extend(query_decision_records(conn, &fts, project_id, limited, include_obsolete)?);
         results.extend(query_artifacts(conn, &fts, project_id, limited, include_obsolete)?);
         results.extend(query_code_entities(conn, &fts, project_id, limited, include_obsolete)?);
 
@@ -214,6 +233,49 @@ fn query_notes(
                 topic_key: r.get(9)?,
                 revision_count: r.get(10)?,
                 obsolete_reason: r.get(11)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
+fn query_decision_records(
+    conn: &Connection,
+    fts: &str,
+    project_id: &str,
+    limit: i64,
+    include_obsolete: bool,
+) -> Result<Vec<SearchAllResult>> {
+    // Chains: "obsolete" here means closed records (superseded/reverted).
+    // By default only active tips surface; include_obsolete surfaces history.
+    let status_filter = if include_obsolete { "" } else { "AND d.status = 'active'" };
+    let sql = format!(
+        "SELECT d.id, d.project_id, d.statement, d.search_text, d.status, d.created_at, rank,
+                d.topic_key, d.origin, d.confidence, d.phase, d.superseded_by
+         FROM decision_records_fts f
+         JOIN decision_records d ON f.rowid = d.rowid
+         WHERE decision_records_fts MATCH ? AND d.project_id = ? {status_filter}
+         ORDER BY rank
+         LIMIT ?"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let rows: Vec<SearchAllResult> = stmt
+        .query_map(params![fts, project_id, limit], |r| {
+            let statement: String = r.get(2)?;
+            let search_text: String = r.get(3)?;
+            Ok(SearchAllResult::DecisionRecord {
+                id: r.get(0)?,
+                project_id: r.get(1)?,
+                title: snippet(&statement, SNIPPET_MAX_CHARS),
+                summary: snippet(&search_text, SNIPPET_MAX_CHARS),
+                status: r.get(4)?,
+                created_at: r.get(5)?,
+                rank: r.get(6)?,
+                topic_key: r.get(7)?,
+                origin: r.get(8)?,
+                confidence: r.get(9)?,
+                phase: r.get(10)?,
+                superseded_by: r.get(11)?,
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -449,6 +511,7 @@ mod tests {
             match h {
                 SearchAllResult::Note { .. } => has_note = true,
                 SearchAllResult::Decision { .. } => has_decision = true,
+                SearchAllResult::DecisionRecord { .. } => {}
                 SearchAllResult::Artifact { .. } => has_artifact = true,
                 SearchAllResult::CodeEntity { .. } => has_code = true,
             }

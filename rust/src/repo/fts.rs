@@ -1,9 +1,10 @@
 //! FTS5 query construction.
 //!
-//! Mirrors `toFtsQuery` in `src/db.ts` L156: splits on whitespace, strips
-//! embedded double quotes, wraps each term in quotes and joins with ` OR `.
-//! Returns `None` when the result would be empty so callers can short-circuit
-//! (TS returns "" — Rust prefers the explicit option).
+//! Splits on whitespace, strips embedded double quotes, wraps each term in
+//! quotes and joins with ` AND ` so every term must match. Previously joined
+//! with `OR`, which turned any multi-term query into an almost-query-all
+//! (a hit on any single term was enough). Returns `None` when the result
+//! would be empty so callers can short-circuit.
 
 pub fn to_fts_query(query: &str) -> Option<String> {
     let terms: Vec<String> = query
@@ -15,7 +16,7 @@ pub fn to_fts_query(query: &str) -> Option<String> {
     if terms.is_empty() {
         None
     } else {
-        Some(terms.join(" OR "))
+        Some(terms.join(" AND "))
     }
 }
 
@@ -37,10 +38,10 @@ mod tests {
     }
 
     #[test]
-    fn multiple_terms_joined_with_or() {
+    fn multiple_terms_joined_with_and() {
         assert_eq!(
             to_fts_query("foo bar baz").as_deref(),
-            Some("\"foo\" OR \"bar\" OR \"baz\"")
+            Some("\"foo\" AND \"bar\" AND \"baz\"")
         );
     }
 
@@ -48,7 +49,7 @@ mod tests {
     fn embedded_quotes_stripped() {
         assert_eq!(
             to_fts_query("a\"b c").as_deref(),
-            Some("\"ab\" OR \"c\"")
+            Some("\"ab\" AND \"c\"")
         );
     }
 }

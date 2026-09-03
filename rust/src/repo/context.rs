@@ -27,6 +27,7 @@ use crate::summary::{
 };
 use crate::tokens;
 
+use super::decision_records::Alternative;
 use super::relations::get_accepted_relations_for_ids;
 use super::serialize::{
     serialize_artifact, serialize_code_entity, serialize_decision, serialize_note,
@@ -70,6 +71,23 @@ pub enum ContextItem {
         tokenizer_model: String,
         topic_key: Option<String>,
         revision_count: i64,
+        sort_ts: String,
+    },
+    /// Tip activo de una cadena de decision_records (v12). Sin importance
+    /// almacenada: se deriva de confidence. Sin token_count almacenado: se
+    /// recuenta on-the-fly siempre.
+    DecisionRecord {
+        id: String,
+        project_id: String,
+        topic_key: String,
+        statement: String,
+        forces: Vec<String>,
+        alternatives: Vec<Alternative>,
+        consequences: Vec<String>,
+        origin: String,
+        confidence: String,
+        status: String,
+        created_at: String,
         sort_ts: String,
     },
     Artifact {
@@ -119,6 +137,7 @@ impl ContextItem {
         match self {
             ContextItem::Note { id, .. }
             | ContextItem::Decision { id, .. }
+            | ContextItem::DecisionRecord { id, .. }
             | ContextItem::Artifact { id, .. }
             | ContextItem::CodeEntity { id, .. } => id,
         }
@@ -128,6 +147,7 @@ impl ContextItem {
         match self {
             ContextItem::Note { .. } => "note",
             ContextItem::Decision { .. } => "decision",
+            ContextItem::DecisionRecord { .. } => "decision_record",
             ContextItem::Artifact { .. } => "artifact",
             ContextItem::CodeEntity { .. } => "code_entity",
         }
@@ -139,6 +159,15 @@ impl ContextItem {
             | ContextItem::Decision { importance, .. }
             | ContextItem::Artifact { importance, .. }
             | ContextItem::CodeEntity { importance, .. } => *importance,
+            // Los tips vienen curados (uno por topic, verdad vigente): una
+            // decisión firme rankea sobre la nota default; una provisoria no.
+            ContextItem::DecisionRecord { confidence, .. } => {
+                if confidence == "decided" {
+                    4
+                } else {
+                    3
+                }
+            }
         }
     }
 
@@ -146,6 +175,7 @@ impl ContextItem {
         match self {
             ContextItem::Note { sort_ts, .. }
             | ContextItem::Decision { sort_ts, .. }
+            | ContextItem::DecisionRecord { sort_ts, .. }
             | ContextItem::Artifact { sort_ts, .. }
             | ContextItem::CodeEntity { sort_ts, .. } => sort_ts,
         }
@@ -157,6 +187,8 @@ impl ContextItem {
             | ContextItem::Decision { tokenizer_model, .. }
             | ContextItem::Artifact { tokenizer_model, .. }
             | ContextItem::CodeEntity { tokenizer_model, .. } => tokenizer_model,
+            // Sin token_count almacenado: fuerza el recuento on-the-fly.
+            ContextItem::DecisionRecord { .. } => "",
         }
     }
 
@@ -166,8 +198,39 @@ impl ContextItem {
             | ContextItem::Decision { token_count, .. }
             | ContextItem::Artifact { token_count, .. }
             | ContextItem::CodeEntity { token_count, .. } => *token_count,
+            ContextItem::DecisionRecord { .. } => 0,
         }
     }
+}
+
+/// Render compacto de un tip para el conteo de tokens — el mismo texto que
+/// el consumidor del contexto va a leer.
+fn render_decision_record(
+    id: &str,
+    topic_key: &str,
+    statement: &str,
+    forces: &[String],
+    alternatives: &[Alternative],
+    consequences: &[String],
+) -> String {
+    let mut out = format!("[decision_record {id}] ({topic_key}) {statement}");
+    if !forces.is_empty() {
+        out.push_str(&format!("\nforces: {}", forces.join("; ")));
+    }
+    if !alternatives.is_empty() {
+        let alts: Vec<String> = alternatives
+            .iter()
+            .map(|a| match &a.rejected_because {
+                Some(r) => format!("{} — rechazada: {}", a.option, r),
+                None => format!("{} — rechazada: (razón no registrada)", a.option),
+            })
+            .collect();
+        out.push_str(&format!("\nalternativas: {}", alts.join("; ")));
+    }
+    if !consequences.is_empty() {
+        out.push_str(&format!("\nconsecuencias: {}", consequences.join("; ")));
+    }
+    out
 }
 
 fn is_pinned(item: &ContextItem, pinned: &HashSet<String>) -> bool {
@@ -199,6 +262,9 @@ fn item_token_count(item: &ContextItem, model: &str) -> i64 {
                 reasoning,
             })
         }
+        ContextItem::DecisionRecord {
+            id, topic_key, statement, forces, alternatives, consequences, ..
+        } => render_decision_record(id, topic_key, statement, forces, alternatives, consequences),
         ContextItem::Artifact { id, importance, topic_key, revision_count, artifact_type, content, .. } => {
             serialize_artifact(&ArtifactCtx {
                 id,
@@ -264,7 +330,10 @@ pub fn build_context(
     db.with(|conn| {
         let mut all_candidates: Vec<ContextItem> = Vec::new();
         all_candidates.extend(load_notes(conn, project_id)?);
-        all_candidates.extend(load_decisions(conn, project_id)?);
+        // v12: las decisiones vigentes son los tips de decision_records; la
+        // tabla `decisions` legacy quedó congelada y sus filas activas ya
+        // están migradas — cargarla acá duplicaría.
+        all_candidates.extend(load_decision_records(conn, project_id)?);
         all_candidates.extend(load_artifacts(conn, project_id)?);
         all_candidates.extend(load_code_entities(conn, project_id)?);
 
@@ -406,30 +475,31 @@ fn load_notes(conn: &Connection, project_id: &str) -> Result<Vec<ContextItem>> {
     Ok(rows)
 }
 
-fn load_decisions(conn: &Connection, project_id: &str) -> Result<Vec<ContextItem>> {
+fn load_decision_records(conn: &Connection, project_id: &str) -> Result<Vec<ContextItem>> {
     let mut stmt = conn.prepare(
-        "SELECT id, project_id, decision, reasoning, status, importance, obsolete_reason,
-                created_at, updated_at, token_count, tokenizer_model, topic_key, revision_count,
-                COALESCE(updated_at, created_at) AS sort_ts
-         FROM decisions WHERE project_id = ? AND status = 'active'",
+        "SELECT id, project_id, topic_key, statement, forces_json, alternatives_json,
+                consequences_json, origin, confidence, status, created_at
+         FROM decision_records WHERE project_id = ? AND status = 'active'",
     )?;
     let rows: Vec<ContextItem> = stmt
         .query_map(params![project_id], |r| {
-            Ok(ContextItem::Decision {
+            let forces_json: String = r.get(4)?;
+            let alternatives_json: String = r.get(5)?;
+            let consequences_json: String = r.get(6)?;
+            let created_at: String = r.get(10)?;
+            Ok(ContextItem::DecisionRecord {
                 id: r.get(0)?,
                 project_id: r.get(1)?,
-                decision: r.get(2)?,
-                reasoning: r.get(3)?,
-                status: r.get(4)?,
-                importance: r.get(5)?,
-                obsolete_reason: r.get(6)?,
-                created_at: r.get(7)?,
-                updated_at: r.get(8)?,
-                token_count: r.get(9)?,
-                tokenizer_model: r.get(10)?,
-                topic_key: r.get(11)?,
-                revision_count: r.get(12)?,
-                sort_ts: r.get(13)?,
+                topic_key: r.get(2)?,
+                statement: r.get(3)?,
+                forces: serde_json::from_str(&forces_json).unwrap_or_default(),
+                alternatives: serde_json::from_str(&alternatives_json).unwrap_or_default(),
+                consequences: serde_json::from_str(&consequences_json).unwrap_or_default(),
+                origin: r.get(7)?,
+                confidence: r.get(8)?,
+                status: r.get(9)?,
+                sort_ts: created_at.clone(),
+                created_at,
             })
         })?
         .collect::<rusqlite::Result<_>>()?;
@@ -598,7 +668,20 @@ pub fn checkpoint(
             .map(|t| t.thread)
             .collect();
 
-    sessions::update_checkpoint(db, session_id, project_id, options.session_summary.as_ref())?;
+    // Server-side stats guarantee: si el caller mandó session_summary sin
+    // stats, completamos los mecánicos desde harness/state + git + DB.
+    // El modelo nunca tiene que acordarse.
+    let mut summary_with_stats: Option<SessionSummary> = options.session_summary.clone();
+    if let Some(ref mut s) = summary_with_stats {
+        if s.stats.is_none() {
+            let derived = db
+                .with(|conn| crate::repo::stats_derivation::derive(conn, session_id, project_id))
+                .ok();
+            s.stats = derived;
+        }
+    }
+
+    sessions::update_checkpoint(db, session_id, project_id, summary_with_stats.as_ref())?;
 
     let used_generated = options.context_summary.is_none();
     let context_summary: ContextSummary = match &options.context_summary {
@@ -718,6 +801,71 @@ mod tests {
         notes::add(&db, &pid, "x", &[], Some(3), None).unwrap();
         let r = build_context(&db, &pid, 4000, None, Some("anthropic:claude")).unwrap();
         assert_eq!(r.tokenizer_model, tokens::ANTHROPIC_CLAUDE);
+    }
+
+    fn record_decision(
+        db: &Db,
+        pid: &str,
+        topic: &str,
+        statement: &str,
+        confidence: &str,
+        supersedes: Option<&str>,
+    ) -> crate::repo::decision_records::DecisionRecordRow {
+        use crate::repo::decision_records::{record, NewDecisionRecord, RecordOutcome};
+        match record(
+            db,
+            NewDecisionRecord {
+                project_id: pid,
+                topic_key: topic,
+                session_id: "s-ctx",
+                phase: Some("planning"),
+                statement,
+                forces: &[],
+                alternatives: &[],
+                consequences: &[],
+                origin: "user_explicit",
+                evidence: &[],
+                confidence,
+                supersedes,
+            },
+        )
+        .unwrap()
+        {
+            RecordOutcome::Recorded { record, .. } => record,
+            RecordOutcome::TipConflict { tip_id, .. } => panic!("tip conflict con {tip_id}"),
+        }
+    }
+
+    #[test]
+    fn build_context_includes_tips_and_omits_superseded() {
+        let (db, pid) = fresh_with_project();
+        let first = record_decision(&db, &pid, "openpay.scope", "v1: solo charges", "decided", None);
+        let tip = record_decision(
+            &db, &pid, "openpay.scope", "v2: charges + hosted fallback", "decided", Some(&first.id),
+        );
+
+        let r = build_context(&db, &pid, 4000, None, None).unwrap();
+        let ids: Vec<&str> = r.items.iter().map(|i| i.id()).collect();
+        assert!(ids.contains(&tip.id.as_str()), "el tip activo debe entrar");
+        assert!(!ids.contains(&first.id.as_str()), "el superseded no debe entrar");
+        assert!(matches!(r.items[0], ContextItem::DecisionRecord { .. }));
+    }
+
+    #[test]
+    fn decided_tip_ranks_above_default_note_tentative_does_not() {
+        let (db, pid) = fresh_with_project();
+        notes::add(&db, &pid, "nota default", &[], Some(3), None).unwrap();
+        record_decision(&db, &pid, "t.decidida", "decisión firme", "decided", None);
+        record_decision(&db, &pid, "t.tentativa", "decisión provisoria", "tentative", None);
+
+        let r = build_context(&db, &pid, 4000, None, None).unwrap();
+        assert_eq!(r.items.len(), 3);
+        // decided (importancia derivada 4) primero; tentative empata en 3 con la nota.
+        assert!(matches!(
+            &r.items[0],
+            ContextItem::DecisionRecord { confidence, .. } if confidence == "decided"
+        ));
+        assert_eq!(r.items[0].importance(), 4);
     }
 
     #[test]

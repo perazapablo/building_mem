@@ -8,6 +8,7 @@ use rmcp::{
 use serde::Deserialize;
 
 use crate::repo::project_threads;
+use crate::sanitize::strip_tool_call_tags;
 
 use super::{json_result, repo_error, MemoryService};
 
@@ -87,7 +88,8 @@ impl MemoryService {
         &self,
         Parameters(args): Parameters<OpenThreadArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        let t = project_threads::open(&self.db, &args.project_id, &args.thread, &args.session_id)
+        let thread = strip_tool_call_tags(&args.thread);
+        let t = project_threads::open(&self.db, &args.project_id, &thread, &args.session_id)
             .map_err(repo_error)?;
         json_result(&t)
     }
@@ -101,11 +103,12 @@ impl MemoryService {
         &self,
         Parameters(args): Parameters<CloseThreadArgs>,
     ) -> Result<CallToolResult, ErrorData> {
+        let reason = args.reason.as_deref().map(strip_tool_call_tags);
         let t = project_threads::close(
             &self.db,
             &args.thread_id,
             args.status.as_str(),
-            args.reason.as_deref(),
+            reason.as_deref(),
             &args.session_id,
         )
         .map_err(repo_error)?;

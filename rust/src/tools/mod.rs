@@ -17,6 +17,7 @@ use crate::repo::Db;
 
 pub mod code;
 pub mod context;
+pub mod decision_records;
 pub mod flex_int;
 pub mod graph;
 pub mod harness;
@@ -40,6 +41,7 @@ impl MemoryService {
             + Self::sessions_router()
             + Self::projects_router()
             + Self::knowledge_router()
+            + Self::decision_records_router()
             + Self::code_router()
             + Self::mutations_router()
             + Self::relations_router()

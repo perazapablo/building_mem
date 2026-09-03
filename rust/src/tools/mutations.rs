@@ -1,5 +1,7 @@
-//! Mutation tools: update/delete for note/decision/artifact + mark_obsolete + audit_stale.
-//! Mirrors `src/tools/mutations.ts`.
+//! Mutation tools: update/delete for note/artifact + mark_obsolete + audit_stale.
+//! `update_decision`/`delete_decision` were removed in v12: the `decisions`
+//! table is frozen legacy — decisions live in append-only `decision_records`
+//! (see tools/decision_records.rs), which has no update/delete by design.
 
 use rmcp::{
     handler::server::wrapper::Parameters,
@@ -8,7 +10,8 @@ use rmcp::{
 };
 use serde::Deserialize;
 
-use crate::repo::{artifacts, decisions, mutations, notes};
+use crate::repo::{artifacts, mutations, notes};
+use crate::sanitize::strip_tool_call_tags;
 
 use super::{json_result, repo_error, MemoryService};
 
@@ -51,19 +54,6 @@ pub struct DeleteByIdArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub struct UpdateDecisionArgs {
-    pub id: String,
-    #[serde(default)]
-    pub decision: Option<String>,
-    #[serde(default)]
-    pub reasoning: Option<String>,
-    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
-    pub importance: Option<i64>,
-    #[serde(default)]
-    pub topic_key: Option<String>,
-}
-
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct UpdateArtifactArgs {
     pub id: String,
     #[serde(default, rename = "type")]
@@ -101,10 +91,11 @@ impl MemoryService {
         &self,
         Parameters(args): Parameters<UpdateNoteArgs>,
     ) -> Result<CallToolResult, ErrorData> {
+        let content = args.content.as_deref().map(strip_tool_call_tags);
         let modified = notes::update(
             &self.db,
             &args.id,
-            args.content.as_deref(),
+            content.as_deref(),
             args.tags.as_deref(),
             args.importance,
             args.topic_key.as_deref(),
@@ -122,42 +113,17 @@ impl MemoryService {
         json_result(&serde_json::json!({ "ok": true }))
     }
 
-    #[tool(description = "Updates an existing decision. For reversed decisions, use mark_obsolete and add_decision for the new decision.")]
-    pub async fn update_decision(
-        &self,
-        Parameters(args): Parameters<UpdateDecisionArgs>,
-    ) -> Result<CallToolResult, ErrorData> {
-        let modified = decisions::update(
-            &self.db,
-            &args.id,
-            args.decision.as_deref(),
-            args.reasoning.as_deref(),
-            args.importance,
-            args.topic_key.as_deref(),
-        )
-        .map_err(repo_error)?;
-        json_result(&serde_json::json!({ "modified": modified }))
-    }
-
-    #[tool(description = "Permanently deletes a decision. For reversed decisions, use mark_obsolete.")]
-    pub async fn delete_decision(
-        &self,
-        Parameters(args): Parameters<DeleteByIdArgs>,
-    ) -> Result<CallToolResult, ErrorData> {
-        decisions::delete(&self.db, &args.id).map_err(repo_error)?;
-        json_result(&serde_json::json!({ "ok": true }))
-    }
-
     #[tool(description = "Updates an existing artifact. If no longer valid, use mark_obsolete instead.")]
     pub async fn update_artifact(
         &self,
         Parameters(args): Parameters<UpdateArtifactArgs>,
     ) -> Result<CallToolResult, ErrorData> {
+        let content = args.content.as_deref().map(strip_tool_call_tags);
         let modified = artifacts::update(
             &self.db,
             &args.id,
             args.artifact_type.as_deref(),
-            args.content.as_deref(),
+            content.as_deref(),
             args.importance,
             args.topic_key.as_deref(),
         )
@@ -179,7 +145,16 @@ impl MemoryService {
         &self,
         Parameters(args): Parameters<MarkObsoleteArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        mutations::mark_obsolete(&self.db, args.entity_type.as_str(), &args.id, &args.reason)
+        if matches!(args.entity_type, EntityType::Decision) {
+            return Err(ErrorData::invalid_params(
+                "the decisions table is frozen legacy: use decision_revert (undone) or \
+                 decision_record with supersedes (replaced) on decision_records instead"
+                    .to_string(),
+                None,
+            ));
+        }
+        let reason = strip_tool_call_tags(&args.reason);
+        mutations::mark_obsolete(&self.db, args.entity_type.as_str(), &args.id, &reason)
             .map_err(repo_error)?;
         json_result(&serde_json::json!({ "ok": true }))
     }

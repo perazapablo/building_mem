@@ -23,13 +23,13 @@ pub struct GetSessionsArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct SaveSessionArgs {
-    /// Descriptive session title.
-    pub title: String,
-    /// Structured session summary.
+    /// Session ID (from harness / SessionStart context). Required to avoid
+    /// creating duplicate rows for the same logical session.
+    pub session_id: String,
+    /// Project ID this session belongs to. Required.
+    pub project_id: String,
+    /// Structured session summary. Title is derived from `summary.goal`.
     pub summary: SessionSummary,
-    /// Project ID this session belongs to.
-    #[serde(default)]
-    pub project_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -59,17 +59,23 @@ impl MemoryService {
     }
 
     #[tool(
-        description = "Creates a new session index with a STRUCTURED summary. \
-            Use when starting work that should be resumable later. \
-            Keep arrays short; reference decisions/artifacts by ID instead of duplicating content."
+        description = "DEPRECATED alias for `checkpoint` (session part only). Now requires \
+            session_id + project_id and upserts by session_id — no more duplicate rows. \
+            Prefer `checkpoint` directly: it also updates the project context_summary \
+            and returns the fresh build_context payload."
     )]
     pub async fn save_session(
         &self,
         Parameters(args): Parameters<SaveSessionArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        let id = sessions::save(&self.db, &args.title, &args.summary, args.project_id.as_deref())
-            .map_err(repo_error)?;
-        json_result(&serde_json::json!({ "id": id }))
+        sessions::update_checkpoint(
+            &self.db,
+            &args.session_id,
+            &args.project_id,
+            Some(&args.summary),
+        )
+        .map_err(repo_error)?;
+        json_result(&serde_json::json!({ "id": args.session_id }))
     }
 
     #[tool(

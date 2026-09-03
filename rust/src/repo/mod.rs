@@ -16,6 +16,7 @@ pub mod auto_link;
 pub mod code_entities;
 pub mod context;
 pub mod counts;
+pub mod decision_records;
 pub mod decisions;
 pub mod events;
 pub mod fts;
@@ -31,6 +32,7 @@ pub mod search;
 pub mod serialize;
 pub mod session_focus;
 pub mod sessions;
+pub mod stats_derivation;
 pub mod working_state;
 
 pub struct Db {

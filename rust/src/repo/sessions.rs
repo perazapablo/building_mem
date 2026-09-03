@@ -57,24 +57,49 @@ pub fn update(db: &Db, id: &str, summary: &SessionSummary) -> Result<()> {
     })
 }
 
+/// Persist a checkpoint. If the session row does not exist yet, it is created
+/// (upsert) so `checkpoint` never silently no-ops when the harness-generated
+/// session_id was never seen by `save_session`. Title falls back to the first
+/// 80 chars of `summary.goal`, or `"checkpoint <sid[:8]>"` when no goal is
+/// available.
 pub fn update_checkpoint(
     db: &Db,
     id: &str,
     project_id: &str,
     summary: Option<&SessionSummary>,
 ) -> Result<()> {
+    let title_fallback = derive_title(id, summary);
     db.with(|conn| {
         let summary_text = summary.map(serialize_summary);
+        // sessions.summary is NOT NULL — use default JSON on first insert when
+        // the caller passed None so the row can exist. On UPDATE we keep the
+        // existing summary via COALESCE.
+        let insert_summary = summary_text
+            .clone()
+            .unwrap_or_else(|| serialize_summary(&SessionSummary::default()));
         conn.execute(
-            "UPDATE sessions
-             SET project_id = ?,
-                 summary = COALESCE(?, summary),
-                 updated_at = datetime('now')
-             WHERE id = ?",
-            params![project_id, summary_text, id],
+            "INSERT INTO sessions (id, title, summary, project_id)
+                  VALUES (?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+                  project_id = excluded.project_id,
+                  summary    = COALESCE(?, sessions.summary),
+                  updated_at = datetime('now')",
+            params![id, title_fallback, insert_summary, project_id, summary_text],
         )?;
         Ok(())
     })
+}
+
+fn derive_title(id: &str, summary: Option<&SessionSummary>) -> String {
+    if let Some(s) = summary {
+        let goal = s.goal.trim();
+        if !goal.is_empty() {
+            let take: String = goal.chars().take(80).collect();
+            return take;
+        }
+    }
+    let short = id.get(..8).unwrap_or(id);
+    format!("checkpoint {short}")
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -253,6 +278,29 @@ mod tests {
         update_checkpoint(&db, &id, &p.id, Some(&new_summary)).unwrap();
         let got = get(&db, &id).unwrap().unwrap();
         assert_eq!(got.summary.unwrap().goal, "checkpointed");
+    }
+
+    #[test]
+    fn checkpoint_creates_missing_session_with_title_from_goal() {
+        let db = fresh();
+        let p = projects::upsert_force(&db, "p1", "", "development", &[]).unwrap();
+        let sid = "harness-sid-abcdef012345";
+        let s = SessionSummary { goal: "Ship the checkpoint upsert fix".into(), ..Default::default() };
+        update_checkpoint(&db, sid, &p.id, Some(&s)).unwrap();
+        let got = get(&db, sid).unwrap().expect("session row must exist after checkpoint");
+        assert_eq!(got.title, "Ship the checkpoint upsert fix");
+        assert_eq!(got.project_id.as_deref(), Some(p.id.as_str()));
+        assert_eq!(got.summary.unwrap().goal, "Ship the checkpoint upsert fix");
+    }
+
+    #[test]
+    fn checkpoint_creates_missing_session_with_fallback_title_when_no_goal() {
+        let db = fresh();
+        let p = projects::upsert_force(&db, "p1", "", "development", &[]).unwrap();
+        let sid = "abcdef01-2345-6789";
+        update_checkpoint(&db, sid, &p.id, None).unwrap();
+        let got = get(&db, sid).unwrap().expect("session row must exist");
+        assert_eq!(got.title, "checkpoint abcdef01");
     }
 
     #[test]

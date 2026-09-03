@@ -68,6 +68,36 @@ pub fn list_all(db: &Db, project_id: Option<&str>) -> Result<Vec<DecisionRow>> {
     })
 }
 
+pub fn get(db: &Db, id: &str) -> Result<Option<DecisionRow>> {
+    db.with(|conn| {
+        let row = conn
+            .query_row(
+                "SELECT id, project_id, decision, reasoning, topic_key, revision_count, status, importance, obsolete_reason, token_count, tokenizer_model, content_hash, created_at, updated_at FROM decisions WHERE id = ?",
+                params![id],
+                |r| {
+                    Ok(DecisionRow {
+                        id: r.get(0)?,
+                        project_id: r.get(1)?,
+                        decision: r.get(2)?,
+                        reasoning: r.get(3)?,
+                        topic_key: r.get(4)?,
+                        revision_count: r.get(5)?,
+                        status: r.get(6)?,
+                        importance: r.get(7)?,
+                        obsolete_reason: r.get(8)?,
+                        token_count: r.get(9)?,
+                        tokenizer_model: r.get(10)?,
+                        content_hash: r.get(11)?,
+                        created_at: r.get(12)?,
+                        updated_at: r.get(13)?,
+                    })
+                },
+            )
+            .optional()?;
+        Ok(row)
+    })
+}
+
 const TABLE: &str = "decisions";
 
 fn normalize_importance(value: i64) -> i64 {

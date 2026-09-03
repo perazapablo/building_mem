@@ -1,5 +1,6 @@
-//! Knowledge tools: add_note, add_decision, add_artifact, search_notes.
-//! Mirrors `src/tools/knowledge.ts`.
+//! Knowledge tools: add_note, add_artifact, search_notes.
+//! `add_decision` was removed in v12: the `decisions` table is frozen legacy;
+//! decisions are recorded via `decision_record` (append-only chains).
 
 use rmcp::{
     handler::server::wrapper::Parameters,
@@ -8,7 +9,8 @@ use rmcp::{
 };
 use serde::Deserialize;
 
-use crate::repo::{artifacts, decisions, notes};
+use crate::repo::{artifacts, notes};
+use crate::sanitize::strip_tool_call_tags;
 
 use super::{json_result, repo_error, MemoryService};
 
@@ -21,17 +23,6 @@ pub struct AddNoteArgs {
     #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub importance: Option<i64>,
     /// Stable semantic collision key. Same active topic updates instead of inserting.
-    #[serde(default)]
-    pub topic_key: Option<String>,
-}
-
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub struct AddDecisionArgs {
-    pub project_id: String,
-    pub decision: String,
-    pub reasoning: String,
-    #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
-    pub importance: Option<i64>,
     #[serde(default)]
     pub topic_key: Option<String>,
 }
@@ -52,8 +43,8 @@ pub struct AddArtifactArgs {
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct SearchNotesArgs {
     pub query: String,
-    #[serde(default)]
-    pub project_id: Option<String>,
+    /// Project ID to scope the search to. Required — no cross-project search.
+    pub project_id: String,
     /// Max results (default: 5, max: 5).
     #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub limit: Option<i64>,
@@ -72,31 +63,12 @@ impl MemoryService {
         &self,
         Parameters(args): Parameters<AddNoteArgs>,
     ) -> Result<CallToolResult, ErrorData> {
+        let content = strip_tool_call_tags(&args.content);
         let id = notes::add(
             &self.db,
             &args.project_id,
-            &args.content,
+            &content,
             &args.tags,
-            args.importance,
-            args.topic_key.as_deref(),
-        )
-        .map_err(repo_error)?;
-        json_result(&serde_json::json!({ "id": id }))
-    }
-
-    #[tool(
-        description = "Stores an important decision with its reasoning. \
-            Reasoning should state why, including relevant rejected alternatives when useful."
-    )]
-    pub async fn add_decision(
-        &self,
-        Parameters(args): Parameters<AddDecisionArgs>,
-    ) -> Result<CallToolResult, ErrorData> {
-        let id = decisions::add(
-            &self.db,
-            &args.project_id,
-            &args.decision,
-            &args.reasoning,
             args.importance,
             args.topic_key.as_deref(),
         )
@@ -112,11 +84,12 @@ impl MemoryService {
         &self,
         Parameters(args): Parameters<AddArtifactArgs>,
     ) -> Result<CallToolResult, ErrorData> {
+        let content = strip_tool_call_tags(&args.content);
         let id = artifacts::add(
             &self.db,
             &args.project_id,
             &args.artifact_type,
-            &args.content,
+            &content,
             args.importance,
             args.topic_key.as_deref(),
         )
@@ -136,7 +109,7 @@ impl MemoryService {
         let rows = notes::search(
             &self.db,
             &args.query,
-            args.project_id.as_deref(),
+            Some(&args.project_id),
             limit,
             include_obsolete,
         )

@@ -19,6 +19,10 @@ path = "src/bin/cleanup_projects.rs"
 name = "verify-rules"
 path = "src/bin/verify_rules.rs"
 
+[[bin]]
+name = "summary-scaffold"
+path = "src/bin/summary_scaffold.rs"
+
 [dependencies]
 rusqlite = { version = "0.32", features = ["bundled", "trace"] }
 sha2 = "0.10"

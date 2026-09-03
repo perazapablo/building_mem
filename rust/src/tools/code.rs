@@ -105,8 +105,8 @@ pub struct GetCodeEntityArgs {
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct SearchCodeEntitiesArgs {
     pub query: String,
-    #[serde(default)]
-    pub project_id: Option<String>,
+    /// Project ID to scope the search to. Required — no cross-project search.
+    pub project_id: String,
     /// Max results (default: 10, max: 20).
     #[serde(default, deserialize_with = "super::flex_int::opt::deserialize")]
     pub limit: Option<i64>,
@@ -207,7 +207,7 @@ impl MemoryService {
         let rows = code_entities::search(
             &self.db,
             &args.query,
-            args.project_id.as_deref(),
+            Some(&args.project_id),
             limit,
             include_obsolete,
         )

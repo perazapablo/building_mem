@@ -143,6 +143,8 @@ mod tests {
             artifacts_ref: vec!["a1".into()],
             pending: vec!["follow-up".into()],
             blockers: vec![],
+            threads_closed: vec![],
+            stats: None,
             notes: Some("nuance".into()),
         };
         let json = serialize(&original);
