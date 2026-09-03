@@ -33,3 +33,12 @@ harness/state/
 /package.json
 /package-lock.json
 /tsconfig.json
+
+# DB backups (la DB misma ya está ignorada arriba)
+*.db.bak-*
+
+# Copias de respaldo puntuales de scripts
+*.bak
+
+# Puntero sesión → tarea del harness de fases (efímero, uno por session_id)
+.harness/current/
