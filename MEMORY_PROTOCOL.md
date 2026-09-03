@@ -36,7 +36,14 @@ Default excludes obsolete. `include_obsolete=true` only for history/audit/recove
 
 ### Writing (during work)
 
-- `add_decision` / `add_artifact` / `add_code_entity` / `add_note` — call at the moment a fact appears, not batched at close. Interrupt-tolerant memory only works if facts land before the interruption. Pass `topic_key` for anything you might revise — a second `add_*` with the same key updates the active entity instead of duplicating.
+- `decision_record` / `add_artifact` / `add_code_entity` / `add_note` — call at the moment a fact appears, not batched at close. Interrupt-tolerant memory only works if facts land before the interruption. For `add_*`, pass `topic_key` for anything you might revise — a second `add_*` with the same key updates the active entity instead of duplicating.
+- `decision_record(project_id, session_id, topic_key, statement, forces[], alternatives[{option, rejected_because|null}], consequences[], origin, confidence, phase?, evidence[], supersedes?)` — decisions are **append-only chains**, not rows (v12 replaced `add_decision`, whose upsert destroyed history). `topic_key` identifies the *chain*; the single `status='active'` record is its tip.
+  - Revising a decision: pass `supersedes=<tip_id>`. Recording on a chain that already has a tip **without** `supersedes` fails and returns the tip — you cannot overwrite what you have not read.
+  - `origin` is required, no default: `user_explicit` / `user_implicit` must be actively affirmed; when unsure, `agent_inferred`. It is the only defense against fabricated rationale, which is indistinguishable from the real thing once written.
+  - `rejected_because: null` is a valid, meaningful state: the option was discarded but nobody recorded why. **Never invent one to fill the field** — ask, or leave it null.
+  - `decision_revert(id, reason, session_id)` — the decision was undone with no replacement. To replace it, use `supersedes` instead. Closed records are frozen.
+  - There is no update/delete for decision records, by design; `mark_obsolete` on `decision` is rejected. The `decisions` table is frozen legacy: its active rows were migrated as single-link chains keeping their ids.
+- `context_for_topic(project_id, topic_key, depth?)` — the chain for a topic, tip-first. Use when resuming a topic cold: it shows what is decided *and how it got there*.
 - `update_*` — revise an existing entity by id. `revision_count` increments automatically.
 - `mark_obsolete(type, id, reason)` — supersede without deleting. Preferred over `delete_*` for anything with history.
 - `delete_*` — for accidents and re-keys, not everyday cleanup. Requires user confirmation (harness `ask` gate).
@@ -65,7 +72,7 @@ get_pending_judgments(project_id) → judge_relation(sync_id, status) per row
 
 | Tool              | Example                                                                |
 |-------------------|------------------------------------------------------------------------|
-| `add_decision`    | "Use Rust over Node for the MCP server. Reason: native binding fragility. Rejected: stay on TS with node:sqlite (would still be Node-runtime-coupled)." |
+| `decision_record` | `statement`: "Use Rust over Node for the MCP server." · `forces`: ["native binding fragility on Node"] · `alternatives`: [{option: "stay on TS with node:sqlite", rejected_because: "would still be Node-runtime-coupled"}] · `consequences`: ["the viewer links the crate by path"] · `origin`: `user_explicit` |
 | `add_artifact`    | A migration plan, a JSON schema, a Cargo.toml fragment, a prompt template. Anything you'd want byte-identical retrieval of. |
 | `add_code_entity` | "`repo::context::build_context` — token-aware bundle builder. Inputs: project_id, budget, optional session_id, optional tokenizer_model. Side effect: none. Path: rust/src/repo/context.rs." |
 | `add_note`        | "User prefers Spanish responses with technical terms in English." Atomic, one sentence. |
@@ -95,7 +102,7 @@ SessionStats {
   "commits":               ["git sha", ...],
   "files_edited":          [{"path": "string", "edits": "int"}, ...],
   "bash_effects":          [{"cmd": "string", "exit": "int"}, ...],
-  "memory_writes":         {"add_decision": "int", "add_artifact": "int", ...},
+  "memory_writes":         {"decision_record": "int", "add_artifact": "int", ...},
   "code_entities_touched": ["code_entity_id", ...],
   "tool_errors":           "int",
   "last_focus":            "string — last set_focus value seen"

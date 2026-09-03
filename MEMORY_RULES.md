@@ -29,12 +29,14 @@ When in doubt, prefer reusing an existing project over creating a new one. Split
 
 | To store                     | Tool               | Hard criterion                                       |
 |------------------------------|--------------------|------------------------------------------------------|
-| technical decision           | `add_decision`     | explicit trade-off + rejected alternative            |
+| technical decision           | `decision_record`  | explicit trade-off + rejected alternative            |
 | durable artifact             | `add_artifact`     | schema / plan / config / prompt with own identity    |
 | code symbol                  | `add_code_entity`  | fn / struct / module / endpoint navigable by path    |
 | atomic observation           | `add_note`         | the rest, max 1 sentence                             |
 
-If two columns fit, pick the more specific one (`add_decision` > `add_note`).
+If two columns fit, pick the more specific one (`decision_record` > `add_note`).
+
+`decision_record` es append-only: `topic_key` identifica una **cadena**, no una fila. Para revisar, pasar `supersedes=<tip_id>` (grabar sobre un tip existente sin eso falla y devuelve el tip). `origin` es obligatorio — `agent_inferred` cuando no estás seguro de que Pablo lo afirmó. `rejected_because: null` es válido; nunca inventar la razón para llenar el campo. Leer una cadena con `context_for_topic`. No hay update/delete; `decision_revert(id, reason)` para una decisión deshecha.
 
 ## Path binding (project ↔ filesystem)
 
@@ -97,7 +99,7 @@ SessionStats: {
   "commits": [],
   "files_edited": [{"path": "", "edits": 0}],
   "bash_effects": [{"cmd": "", "exit": 0}],
-  "memory_writes": {"add_decision": 0},
+  "memory_writes": {"decision_record": 0},
   "code_entities_touched": [],
   "tool_errors": 0,
   "last_focus": ""
@@ -114,7 +116,7 @@ ContextSummary: {
 
 `stats` es mecánico: lo llena el harness desde el event log (tool calls, hooks, git). El modelo **no** debe escribirlo. `threads_closed` son ids de `project_threads` cerrados durante la sesión.
 
-`decisions_ref` and `artifacts_ref` are IDs returned by `add_decision` / `add_artifact`.
+`decisions_ref` and `artifacts_ref` are IDs returned by `decision_record` / `add_artifact`.
 Never duplicate the content of a decision inside the summary — reference it.
 
 ## Anti-duplicado: a nivel proyecto, no por entrada
@@ -124,8 +126,8 @@ El verdadero anti-duplicado es **a nivel proyecto**, no por entrada.
 Flujo correcto:
 
 1. **Confirmar el proyecto** una sola vez al inicio: `list_projects` → match por nombre/tags/path → `get_project(id)`. Si no hay match real → `upsert_project` (respetar `outcome`: `auto_merged` / `ambiguous` / `created`).
-2. **Identificado el proyecto, avanzar directo** con `add_decision` / `add_artifact` / `add_code_entity` / `add_note`. **No** hacer `search_*` defensivo antes de cada `add_*`.
-3. Usar `topic_key` consistente — el MCP deduplica por slug normalizado internamente.
+2. **Identificado el proyecto, avanzar directo** con `decision_record` / `add_artifact` / `add_code_entity` / `add_note`. **No** hacer `search_*` defensivo antes de cada write.
+3. Usar `topic_key` consistente — en `add_*` el MCP deduplica por slug normalizado; en `decision_record` el `topic_key` agrupa la cadena y el server rechaza pisar el tip sin `supersedes`.
 
 Cuándo SÍ buscar antes de un `add_*`:
 - Sospecha real de duplicado (mismo topic recién creado en esta sesión, edición sobre algo viejo).
