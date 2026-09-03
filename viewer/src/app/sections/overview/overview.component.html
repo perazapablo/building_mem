@@ -30,6 +30,15 @@
       </div>
     </div>
 
+    <app-section-card title="Paths registrados" [badge]="snap.paths.length" *ngIf="snap.paths.length">
+      <ul class="paths">
+        <li *ngFor="let pp of snap.paths">
+          <code class="path">{{ pp.path }}</code>
+          <button class="copy-btn" type="button" (click)="copyPath(pp.path)" title="Copiar path">⧉</button>
+        </li>
+      </ul>
+    </app-section-card>
+
     <app-section-card title="Context summary" *ngIf="contextSummary() as cs">
       <div class="cs">
         <div class="cs-block" *ngIf="cs.architecture">
@@ -61,23 +70,17 @@
       </div>
     </app-section-card>
 
-    <app-section-card title="Working state activo" [badge]="snap.workingStates.length"
-      *ngIf="snap.workingStates.length">
+    <app-section-card title="Pinned por sesión (working_state legacy)" [badge]="pinnedCount(snap.workingStates)"
+      *ngIf="pinnedCount(snap.workingStates) > 0">
       <div class="ws-list">
-        <div *ngFor="let ws of snap.workingStates" class="ws-item">
-          <div class="ws-focus">{{ ws.focus || '(sin focus)' }}</div>
-          <div class="ws-meta">session {{ ws.session_id.slice(0, 8) }} · {{ ws.updated_at }}</div>
-          <div class="ws-threads" *ngIf="ws.open_threads.length">
-            <span class="tag">open threads</span>
-            <ul>
-              <li *ngFor="let t of ws.open_threads">{{ t }}</li>
-            </ul>
+        <ng-container *ngFor="let ws of snap.workingStates">
+          <div class="ws-item" *ngIf="ws.pinned_ids.length">
+            <div class="ws-meta">session {{ ws.session_id.slice(0, 8) }} · <span [title]="ws.updated_at | dateAbs">{{ ws.updated_at | dateRel }}</span></div>
+            <div class="ws-pinned">
+              <span class="chip" *ngFor="let id of ws.pinned_ids">{{ id }}</span>
+            </div>
           </div>
-          <div class="ws-pinned" *ngIf="ws.pinned_ids.length">
-            <span class="tag">pinned</span>
-            <span class="chip" *ngFor="let id of ws.pinned_ids">{{ id }}</span>
-          </div>
-        </div>
+        </ng-container>
       </div>
     </app-section-card>
 
@@ -87,7 +90,7 @@
         <div *ngFor="let s of snap.sessions" class="session">
           <div class="s-head">
             <span class="s-title">{{ s.title }}</span>
-            <span class="s-date">{{ s.updated_at || s.created_at }}</span>
+            <span class="s-date" [title]="(s.updated_at || s.created_at) | dateAbs">{{ (s.updated_at || s.created_at) | dateRel }}</span>
           </div>
           <div class="s-body">
             <div class="s-goal" *ngIf="sessionGoal(s)"><strong>Goal:</strong> {{ sessionGoal(s) }}</div>

@@ -1,7 +1,12 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'overview' },
+  { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+  {
+    path: 'dashboard',
+    loadComponent: () =>
+      import('./sections/dashboard/dashboard.component').then((m) => m.DashboardComponent),
+  },
   {
     path: 'overview',
     loadComponent: () =>
@@ -21,6 +26,16 @@ export const routes: Routes = [
     path: 'history',
     loadComponent: () =>
       import('./sections/history/history.component').then((m) => m.HistoryComponent),
+  },
+  {
+    path: 'threads',
+    loadComponent: () =>
+      import('./sections/threads/threads.component').then((m) => m.ThreadsComponent),
+  },
+  {
+    path: 'judgments',
+    loadComponent: () =>
+      import('./sections/judgments/judgments.component').then((m) => m.JudgmentsComponent),
   },
   {
     path: 'graph',

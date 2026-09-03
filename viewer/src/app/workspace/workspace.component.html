@@ -1,25 +1,52 @@
-<div class="workspace" *ngIf="ws.current() as proj; else noProj">
-  <header class="workspace-header">
-    <div class="title">
-      <h2>{{ proj.name }}</h2>
-      <span class="type">{{ proj.project_type }}</span>
-    </div>
-    <p class="desc" *ngIf="proj.description">{{ proj.description }}</p>
-  </header>
-  <nav class="section-nav">
-    <a routerLink="overview" routerLinkActive="active">Overview</a>
-    <a routerLink="knowledge" routerLinkActive="active">Knowledge</a>
-    <a routerLink="code" routerLinkActive="active">Code</a>
-    <a routerLink="history" routerLinkActive="active">History</a>
-    <a routerLink="graph" routerLinkActive="active">Graph</a>
-    <a routerLink="context" routerLinkActive="active">Context Builder</a>
-  </nav>
-  <main class="section-body">
-    <router-outlet></router-outlet>
-  </main>
+<div class="workspace">
+  <ng-container *ngIf="isDashboard(); else projectView">
+    <main class="section-body">
+      <router-outlet></router-outlet>
+    </main>
+  </ng-container>
+
+  <ng-template #projectView>
+    <ng-container *ngIf="ws.current() as proj; else noProj">
+      <header class="workspace-header">
+        <a routerLink="/dashboard" class="home-btn" title="Volver al dashboard (Alt+D)">
+          <span class="home-icon">◀</span>
+          <span class="home-label">Dashboard</span>
+        </a>
+        <div class="title-wrap">
+          <div class="title">
+            <h2>{{ proj.name }}</h2>
+            <span class="type">{{ proj.project_type }}</span>
+            <span
+              class="proj-id"
+              [title]="'ID completo: ' + proj.id + ' (click para copiar)'"
+              (click)="copyId(proj.id)"
+            >
+              {{ proj.id }}
+              <span class="copy-hint">{{ copiedId() === proj.id ? '✓ copiado' : '⧉' }}</span>
+            </span>
+          </div>
+          <p class="desc" *ngIf="proj.description">{{ proj.description }}</p>
+        </div>
+      </header>
+      <nav class="section-nav">
+        <a routerLink="/overview" routerLinkActive="active">Overview</a>
+        <a routerLink="/knowledge" routerLinkActive="active">Knowledge</a>
+        <a routerLink="/code" routerLinkActive="active">Code</a>
+        <a routerLink="/history" routerLinkActive="active">History</a>
+        <a routerLink="/threads" routerLinkActive="active">Threads</a>
+        <a routerLink="/judgments" routerLinkActive="active">Judgments</a>
+        <a routerLink="/graph" routerLinkActive="active">Graph</a>
+        <a routerLink="/context" routerLinkActive="active">Context Builder</a>
+      </nav>
+      <main class="section-body">
+        <router-outlet></router-outlet>
+      </main>
+    </ng-container>
+
+    <ng-template #noProj>
+      <div class="empty-workspace">
+        <p>Seleccioná un proyecto a la izquierda, o volvé al <a routerLink="/dashboard">dashboard</a>.</p>
+      </div>
+    </ng-template>
+  </ng-template>
 </div>
-<ng-template #noProj>
-  <div class="empty-workspace">
-    <p>Seleccioná un proyecto a la izquierda.</p>
-  </div>
-</ng-template>

@@ -41,6 +41,18 @@ pub fn run() {
             commands::get_code_entity_context,
             commands::search_notes,
             commands::get_related,
+            commands::get_focus,
+            commands::get_latest_focus_for_project,
+            commands::list_project_paths,
+            commands::list_project_threads,
+            commands::open_thread,
+            commands::close_thread,
+            commands::touch_thread,
+            commands::mark_stale_threads,
+            commands::judge_relation,
+            commands::get_note,
+            commands::get_decision,
+            commands::get_artifact,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

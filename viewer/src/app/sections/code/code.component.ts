@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { CodeEntity, Project } from '../../core/models';
 import { TauriService } from '../../core/tauri.service';
 import { WorkspaceService } from '../../core/workspace.service';
+import { DateAbsPipe, DateRelPipe } from '../../core/date.pipes';
+import { AuditTrailComponent } from '../../shared/audit-trail/audit-trail.component';
 
 interface KindGroup {
   kind: string;
@@ -13,7 +15,7 @@ interface KindGroup {
 @Component({
   selector: 'app-code',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DateAbsPipe, DateRelPipe, AuditTrailComponent],
   templateUrl: './code.component.html',
   styleUrl: './code.component.scss',
 })

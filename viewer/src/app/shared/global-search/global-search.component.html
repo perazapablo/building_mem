@@ -1,0 +1,120 @@
+<div class="global-search-root">
+<div class="global-search" [class.open]="open()">
+  <input type="search"
+    class="input"
+    [value]="query()"
+    (input)="onInput($any($event.target).value)"
+    (focus)="onFocus()"
+    [placeholder]="ws.current() ? 'Buscar en ' + ws.current()!.name + '…' : 'Elegí un proyecto para buscar'"
+    [disabled]="!ws.current()" />
+  <button *ngIf="query()" type="button" class="clear-btn" (click)="clear()" title="Limpiar">×</button>
+
+  <div class="dropdown" *ngIf="open()">
+    <div class="status" *ngIf="loading()">buscando…</div>
+    <div class="error" *ngIf="error()">{{ error() }}</div>
+    <div class="empty" *ngIf="!loading() && !error() && totalCount() === 0">sin resultados</div>
+
+    <div class="summary" *ngIf="totalCount() > 0">
+      {{ totalCount() }} resultado{{ totalCount() === 1 ? '' : 's' }}
+    </div>
+
+    <div class="group" *ngFor="let g of grouped()">
+      <div class="group-head">
+        <span class="group-label">{{ g.label }}</span>
+        <span class="group-count">{{ g.results.length }}</span>
+      </div>
+      <div class="hits">
+        <button *ngFor="let r of g.results"
+          type="button"
+          class="hit"
+          (click)="openDetail(r)">
+          <div class="hit-head">
+            <span class="pill" [attr.data-type]="r.type">{{ g.label }}</span>
+            <span class="hit-topic" *ngIf="r.topic_key">{{ r.topic_key }}</span>
+            <span class="hit-imp" title="importance">{{ r.importance }}</span>
+            <span class="hit-status" *ngIf="r.status !== 'active'">{{ r.status }}</span>
+          </div>
+          <div class="hit-body">{{ snippet(r) }}</div>
+          <div class="hit-id" [title]="r.id">{{ r.id.slice(0, 8) }}…</div>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="selected() as sel" (click)="closeDetail()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <header class="modal-head">
+      <span class="pill" [attr.data-type]="sel.type">
+        {{ sel.type === 'note' ? 'Nota'
+          : sel.type === 'decision' ? 'Decisión'
+          : sel.type === 'artifact' ? 'Artefacto'
+          : 'Code entity' }}
+      </span>
+      <span class="topic" *ngIf="sel.topic_key">{{ sel.topic_key }}</span>
+      <button class="id-copy" type="button" (click)="copyId(sel.id)" [title]="'copiar id: ' + sel.id">
+        {{ sel.id.slice(0, 8) }}… ⧉
+      </button>
+      <div class="spacer"></div>
+      <button class="ghost" type="button" (click)="goToSection()" title="Ir a la sección con este id">Abrir en sección →</button>
+      <button class="close" type="button" (click)="closeDetail()" title="Cerrar (Esc)">×</button>
+    </header>
+
+    <div class="modal-meta">
+      <span class="chip">status: <strong>{{ sel.status }}</strong></span>
+      <span class="chip">importance: <strong>{{ sel.importance }}</strong></span>
+      <span class="chip">rev: <strong>{{ sel.revision_count }}</strong></span>
+      <span class="chip">rank: <strong>{{ sel.rank.toFixed(3) }}</strong></span>
+    </div>
+
+    <div class="modal-body">
+      <ng-container [ngSwitch]="sel.type">
+        <ng-container *ngSwitchCase="'note'">
+          <p class="content">{{ $any(sel).content }}</p>
+          <div class="tags" *ngIf="$any(sel).tags?.length">
+            <span class="tag" *ngFor="let t of $any(sel).tags">{{ t }}</span>
+          </div>
+        </ng-container>
+
+        <ng-container *ngSwitchCase="'decision'">
+          <h4>Decisión</h4>
+          <p class="content">{{ $any(sel).decision }}</p>
+          <h4 *ngIf="$any(sel).reasoning">Razonamiento</h4>
+          <p class="content secondary" *ngIf="$any(sel).reasoning">{{ $any(sel).reasoning }}</p>
+        </ng-container>
+
+        <ng-container *ngSwitchCase="'artifact'">
+          <h4>{{ $any(sel).artifact_type }}</h4>
+          <pre class="code">{{ $any(sel).content }}</pre>
+        </ng-container>
+
+        <ng-container *ngSwitchCase="'code_entity'">
+          <div class="ce-head">
+            <span class="ce-kind">{{ $any(sel).kind }}</span>
+            <span class="ce-name">{{ $any(sel).qualified_name || $any(sel).name }}</span>
+          </div>
+          <div class="ce-path" *ngIf="$any(sel).path">{{ $any(sel).path }}</div>
+
+          <ng-container *ngIf="detailExtras() as x">
+            <h4 *ngIf="x.signature">Firma</h4>
+            <pre class="code" *ngIf="x.signature">{{ x.signature }}</pre>
+
+            <h4 *ngIf="x.summary">Resumen</h4>
+            <p class="content" *ngIf="x.summary">{{ x.summary }}</p>
+
+            <div class="ce-grid">
+              <div *ngIf="x.inputs"><span class="k">inputs</span><span class="v">{{ x.inputs }}</span></div>
+              <div *ngIf="x.outputs"><span class="k">outputs</span><span class="v">{{ x.outputs }}</span></div>
+              <div *ngIf="x.side_effects"><span class="k">side effects</span><span class="v">{{ x.side_effects }}</span></div>
+            </div>
+
+            <div class="tags" *ngIf="x.tags?.length">
+              <span class="tag" *ngFor="let t of x.tags">{{ t }}</span>
+            </div>
+          </ng-container>
+        </ng-container>
+      </ng-container>
+    </div>
+  </div>
+</div>
+</div>

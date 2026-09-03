@@ -1,0 +1,105 @@
+<div class="threads">
+  <header class="controls">
+    <div class="row active-session" *ngIf="activeSession() as s; else noActive">
+      <span class="lbl">Sesión activa</span>
+      <span class="sid" [title]="s.session_id">{{ s.session_id.slice(0, 8) }}…</span>
+      <span class="focus" [title]="'set_focus: ' + (s.updated_at | dateFull)">›  {{ s.focus }}</span>
+      <span class="when">{{ s.updated_at | dateRel }}</span>
+    </div>
+    <ng-template #noActive>
+      <div class="row active-session none">
+        <span class="lbl">Sesión activa</span>
+        <span class="focus none">— sin sesión con focus para este proyecto —</span>
+      </div>
+    </ng-template>
+
+    <div class="row new-thread">
+      <input type="text"
+        [value]="newText()"
+        (input)="newText.set($any($event.target).value)"
+        (keydown.enter)="openNew()"
+        placeholder="descripción del hilo nuevo…" />
+      <button type="button" (click)="openNew()" [disabled]="!activeSession()">Abrir hilo</button>
+    </div>
+
+    <div class="row filters">
+      <span class="lbl">Filtrar por estado</span>
+      <button *ngFor="let f of filters"
+        type="button"
+        [class.active]="filter() === f"
+        (click)="setFilter(f)"
+        [title]="statusHelp(f)">
+        {{ statusLabel(f) }}<span class="badge" *ngIf="f !== 'all'">{{ countFor(f) }}</span>
+      </button>
+    </div>
+
+    <div class="row stale">
+      <label>
+        Marcar como rancios los abiertos con más de
+        <input type="number" min="1"
+          [value]="staleDays()"
+          (input)="staleDays.set(+$any($event.target).value); persistStaleDays()" />
+        días sin tocar
+      </label>
+      <button type="button" (click)="markStale()">Marcar rancios</button>
+    </div>
+
+    <div *ngIf="error()" class="error">{{ error() }}</div>
+  </header>
+
+  <section class="list">
+    <div *ngIf="loading()" class="status">cargando…</div>
+    <div *ngIf="!loading() && !filtered().length" class="status empty">no hay hilos en este filtro</div>
+
+    <article *ngFor="let t of filtered()" class="thread" [class.busy]="busyId() === t.id" [attr.data-status]="t.status">
+      <div class="head">
+        <span class="status-badge" [attr.data-status]="t.status" [title]="statusHelp(t.status)">{{ statusLabel(t.status) }}</span>
+        <span class="age" [title]="'última actualización: ' + (t.updated_at | dateFull)">{{ t.updated_at | dateRel }}</span>
+      </div>
+      <div class="body clamp" (click)="openModal(t)" title="Ver completo">{{ t.thread }}</div>
+
+      <div class="session-line opened">
+        <span class="pill">abierto en</span>
+        <span class="sid" [title]="t.opened_in">{{ t.opened_in.slice(0, 8) }}…</span>
+        <span class="focus" *ngIf="focusOf(t.opened_in) as f" [title]="f.focus">— {{ f.focus }}</span>
+        <span class="when" [title]="t.created_at | dateFull">· {{ t.created_at | dateRel }}</span>
+      </div>
+
+      <div class="session-line closed" *ngIf="t.closed_in">
+        <span class="pill">cerrado en</span>
+        <span class="sid" [title]="t.closed_in">{{ t.closed_in?.slice(0, 8) }}…</span>
+        <span class="focus" *ngIf="focusOf(t.closed_in) as f" [title]="f.focus">— {{ f.focus }}</span>
+        <span class="when" *ngIf="t.closed_at" [title]="t.closed_at | dateFull">· {{ t.closed_at | dateRel }}</span>
+      </div>
+
+      <div class="reason" *ngIf="t.close_reason">“{{ t.close_reason }}”</div>
+
+      <div class="actions" *ngIf="t.status === 'open' || t.status === 'stale'">
+        <button type="button" (click)="touch(t)" [disabled]="busyId() === t.id" *ngIf="t.status === 'open'" title="Bumpea updated_at sin cambiar el estado">Sigo en esto</button>
+        <button type="button" (click)="close(t, 'done')" [disabled]="busyId() === t.id || !activeSession()" title="Cerrar como terminado">Cerrar (hecho)</button>
+        <button type="button" class="danger" (click)="close(t, 'dropped')" [disabled]="busyId() === t.id || !activeSession()" title="Cerrar como abandonado">Cerrar (descartado)</button>
+      </div>
+    </article>
+  </section>
+
+  <div class="modal-backdrop" *ngIf="modal() as m" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <header>
+        <div class="modal-title">
+          <h4>{{ m.title }}</h4>
+          <span class="modal-subtitle" *ngIf="m.subtitle">{{ m.subtitle }}</span>
+        </div>
+        <button type="button" class="close" (click)="closeModal()" aria-label="Cerrar">×</button>
+      </header>
+      <div class="modal-body">
+        <pre>{{ m.body }}</pre>
+      </div>
+      <footer *ngIf="m.meta?.length">
+        <div class="meta-item" *ngFor="let kv of m.meta">
+          <span class="k">{{ kv.k }}</span>
+          <span class="v">{{ kv.v }}</span>
+        </div>
+      </footer>
+    </div>
+  </div>
+</div>

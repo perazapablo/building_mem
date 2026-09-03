@@ -238,6 +238,59 @@ export interface ContextSummary {
   notes?: string;
 }
 
+export interface FileEditStat {
+  path: string;
+  edits: number;
+}
+
+export interface BashEffectStat {
+  cmd: string;
+  exit: number;
+}
+
+export interface SessionStats {
+  duration_min?: number;
+  turns?: number;
+  commits?: string[];
+  files_edited?: FileEditStat[];
+  bash_effects?: BashEffectStat[];
+  memory_writes?: Record<string, number>;
+  code_entities_touched?: string[];
+  tool_errors?: number;
+  last_focus?: string;
+}
+
+export interface SessionFocus {
+  session_id: string;
+  project_id: string;
+  focus: string;
+  set_at: string;
+  updated_at: string;
+}
+
+export interface ProjectPath {
+  id: string;
+  project_id: string;
+  path: string;
+  path_key: string;
+  created_at: string;
+}
+
+export type ThreadStatus = 'open' | 'done' | 'dropped' | 'stale';
+
+export interface ProjectThread {
+  id: string;
+  project_id: string;
+  thread: string;
+  status: ThreadStatus;
+  opened_in: string;
+  closed_in: string | null;
+  close_reason: string | null;
+  created_at: string;
+  updated_at: string;
+  closed_at: string | null;
+}
+
 export interface SessionSummary {
   goal?: string;
   outcome?: string;
@@ -245,6 +298,8 @@ export interface SessionSummary {
   artifacts_ref?: string[];
   pending?: string[];
   blockers?: string[];
+  threads_closed?: string[];
+  stats?: SessionStats | null;
   notes?: string;
 }
 

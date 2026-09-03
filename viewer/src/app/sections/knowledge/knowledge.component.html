@@ -48,7 +48,7 @@
           <p class="secondary" *ngIf="d.reasoning">{{ d.reasoning }}</p>
           <footer>
             <span>rev {{ d.revision_count }}</span>
-            <span>{{ d.updated_at || d.created_at }}</span>
+            <span [title]="(d.updated_at || d.created_at) | dateAbs">{{ (d.updated_at || d.created_at) | dateRel }}</span>
           </footer>
         </article>
       </ng-container>
@@ -68,7 +68,7 @@
           <pre class="content">{{ a.content }}</pre>
           <footer>
             <span>rev {{ a.revision_count }}</span>
-            <span>{{ a.updated_at || a.created_at }}</span>
+            <span [title]="(a.updated_at || a.created_at) | dateAbs">{{ (a.updated_at || a.created_at) | dateRel }}</span>
           </footer>
         </article>
       </ng-container>
@@ -88,7 +88,7 @@
           <p class="primary">{{ n.content }}</p>
           <footer>
             <span>rev {{ n.revision_count }}</span>
-            <span>{{ n.updated_at || n.created_at }}</span>
+            <span [title]="(n.updated_at || n.created_at) | dateAbs">{{ (n.updated_at || n.created_at) | dateRel }}</span>
           </footer>
         </article>
       </ng-container>
@@ -131,7 +131,7 @@
       <div><span>importance</span>{{ $any(sel.data).importance }}</div>
       <div><span>revisions</span>{{ $any(sel.data).revision_count }}</div>
       <div *ngIf="$any(sel.data).token_count !== undefined"><span>tokens</span>{{ $any(sel.data).token_count }}</div>
-      <div><span>updated</span>{{ $any(sel.data).updated_at || $any(sel.data).created_at }}</div>
+      <div><span>updated</span><span [title]="($any(sel.data).updated_at || $any(sel.data).created_at) | dateAbs">{{ ($any(sel.data).updated_at || $any(sel.data).created_at) | dateRel }}</span></div>
       <div *ngIf="$any(sel.data).obsolete_reason"><span>obsoleto</span>{{ $any(sel.data).obsolete_reason }}</div>
     </section>
 
@@ -151,6 +151,11 @@
         </li>
       </ul>
       <ng-template #noRel><p class="empty">sin relaciones</p></ng-template>
+    </section>
+
+    <section class="block">
+      <h4>Historial de cambios</h4>
+      <app-audit-trail [entityType]="sel.type" [entityId]="sel.id"></app-audit-trail>
     </section>
 
     <section class="block">

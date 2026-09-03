@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.4rem 0.8rem;
+  padding: 0.6rem 1rem;
   background: var(--bg-elev);
   border-bottom: 1px solid var(--border);
   gap: 1rem;
@@ -12,16 +12,18 @@
 .left {
   display: flex;
   align-items: baseline;
-  gap: 0.8rem;
+  gap: 1rem;
   min-width: 0;
 
   strong {
     color: var(--accent);
+    font-size: var(--fs-md);
+    letter-spacing: 0.02em;
   }
 
   .path {
     color: var(--fg-dim);
-    font-size: 0.8em;
+    font-size: var(--fs-xs);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -32,29 +34,32 @@
 .right {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
 .count {
   background: var(--bg-elev-2);
   color: var(--fg-dim);
-  padding: 0.1rem 0.4rem;
-  border-radius: 3px;
-  font-size: 0.75em;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
   border: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
 }
 
 button {
   background: var(--bg-elev-2);
   color: var(--fg);
   border: 1px solid var(--border);
-  padding: 0.2rem 0.5rem;
+  padding: 0.35rem 0.7rem;
   cursor: pointer;
-  border-radius: 3px;
-  font-size: 0.8em;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
 
   &:hover {
     background: #232323;
+    border-color: var(--accent);
+    color: var(--accent);
   }
 
   &:disabled {
@@ -68,4 +73,48 @@ button {
   color: var(--danger);
   font-size: 0.8em;
   padding: 0.2rem 0;
+}
+
+.focus-bar {
+  flex-basis: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.4rem 0 0;
+  border-top: 1px dashed var(--border);
+  margin-top: 0.4rem;
+  font-size: var(--fs-sm);
+  min-width: 0;
+
+  .focus-label {
+    color: var(--accent-2);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+  }
+
+  .focus-project {
+    color: var(--fg);
+    font-weight: 600;
+  }
+
+  .focus-sep {
+    color: var(--fg-dim);
+  }
+
+  .focus-text {
+    color: var(--fg);
+    font-style: italic;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .focus-empty {
+    color: var(--fg-dim);
+    font-style: italic;
+  }
 }

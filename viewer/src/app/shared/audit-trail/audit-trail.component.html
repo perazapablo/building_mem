@@ -1,0 +1,30 @@
+<div class="audit-trail">
+  <div *ngIf="loading()" class="status">cargando historial…</div>
+  <div *ngIf="error()" class="error">{{ error() }}</div>
+  <div *ngIf="!loading() && !error() && !events().length" class="empty">sin eventos registrados</div>
+
+  <ol *ngIf="events().length" class="timeline">
+    <li *ngFor="let ev of events()" class="event" [attr.data-op]="ev.op">
+      <div class="marker" [attr.data-op]="ev.op"></div>
+      <div class="body">
+        <div class="head">
+          <span class="op" [attr.data-op]="ev.op">{{ opLabel(ev.op) }}</span>
+          <span class="ts" [title]="ev.ts | dateAbs">{{ ev.ts | dateRel }}</span>
+        </div>
+        <button *ngIf="hasPayload(ev)" type="button" class="toggle" (click)="toggle(ev.id)">
+          {{ isExpanded(ev.id) ? 'ocultar' : 'ver' }} payload
+        </button>
+        <div class="payload" *ngIf="isExpanded(ev.id)">
+          <div class="side" *ngIf="ev.payload_before">
+            <span class="k">antes</span>
+            <pre>{{ formatPayload(ev.payload_before) }}</pre>
+          </div>
+          <div class="side" *ngIf="ev.payload_after">
+            <span class="k">después</span>
+            <pre>{{ formatPayload(ev.payload_after) }}</pre>
+          </div>
+        </div>
+      </div>
+    </li>
+  </ol>
+</div>

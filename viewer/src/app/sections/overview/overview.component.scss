@@ -183,3 +183,46 @@
     }
   }
 }
+
+.paths {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+
+    &:last-child { border-bottom: none; }
+
+    .path {
+      flex: 1;
+      color: var(--fg);
+      font-family: ui-monospace, monospace;
+      font-size: 0.85em;
+      background: var(--bg-elev);
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .copy-btn {
+      background: var(--bg-elev-2);
+      color: var(--fg-dim);
+      border: 1px solid var(--border);
+      padding: 0.15rem 0.45rem;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.9em;
+
+      &:hover {
+        color: var(--accent);
+      }
+    }
+  }
+}

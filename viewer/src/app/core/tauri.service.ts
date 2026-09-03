@@ -15,10 +15,14 @@ import {
   NoteRow,
   Project,
   ProjectContext,
+  ProjectPath,
+  ProjectThread,
   Relation,
   SearchAllResponse,
+  SessionFocus,
   SessionRow,
   TableCounts,
+  ThreadStatus,
   WorkingState,
 } from './models';
 
@@ -147,6 +151,18 @@ export class TauriService {
     return invoke<CodeEntity | null>('get_code_entity', { id });
   }
 
+  getNote(id: string) {
+    return invoke<NoteRow | null>('get_note', { id });
+  }
+
+  getDecision(id: string) {
+    return invoke<DecisionRow | null>('get_decision', { id });
+  }
+
+  getArtifact(id: string) {
+    return invoke<ArtifactRow | null>('get_artifact', { id });
+  }
+
   searchCodeEntities(query: string, projectId?: string, limit = 50) {
     return invoke<CodeEntity[]>('search_code_entities', {
       query,
@@ -179,11 +195,63 @@ export class TauriService {
     });
   }
 
-  searchAll(query: string, projectId?: string, limit = 50) {
+  searchAll(query: string, projectId: string, limit = 50) {
     return invoke<SearchAllResponse>('search_all', {
       query,
-      projectId: projectId ?? null,
+      projectId,
       limit,
     });
+  }
+
+  // ─── session_focus ────────────────────────────────────────────────────────
+
+  getFocus(sessionId: string) {
+    return invoke<SessionFocus | null>('get_focus', { sessionId });
+  }
+
+  getLatestFocusForProject(projectId: string) {
+    return invoke<SessionFocus | null>('get_latest_focus_for_project', { projectId });
+  }
+
+  // ─── project_paths ────────────────────────────────────────────────────────
+
+  listProjectPaths(projectId: string) {
+    return invoke<ProjectPath[]>('list_project_paths', { projectId });
+  }
+
+  // ─── project_threads (R/W) ────────────────────────────────────────────────
+
+  listProjectThreads(projectId: string, status?: ThreadStatus) {
+    return invoke<ProjectThread[]>('list_project_threads', {
+      projectId,
+      status: status ?? null,
+    });
+  }
+
+  openThread(projectId: string, thread: string, sessionId: string) {
+    return invoke<ProjectThread>('open_thread', { projectId, thread, sessionId });
+  }
+
+  closeThread(threadId: string, status: 'done' | 'dropped', sessionId: string, reason?: string) {
+    return invoke<ProjectThread>('close_thread', {
+      threadId,
+      status,
+      reason: reason ?? null,
+      sessionId,
+    });
+  }
+
+  touchThread(threadId: string) {
+    return invoke<boolean>('touch_thread', { threadId });
+  }
+
+  markStaleThreads(projectId: string, days: number) {
+    return invoke<number>('mark_stale_threads', { projectId, days });
+  }
+
+  // ─── judge relation ───────────────────────────────────────────────────────
+
+  judgeRelation(syncId: string, status: 'accepted' | 'rejected') {
+    return invoke<void>('judge_relation', { syncId, status });
   }
 }

@@ -1,6 +1,6 @@
 use mcp_memory::repo::{
-    artifacts, code_entities, decisions, events, links, notes, projects, relations, sessions,
-    working_state,
+    artifacts, code_entities, decisions, events, links, notes, project_paths, project_threads,
+    projects, relations, session_focus, sessions, working_state,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -245,6 +245,24 @@ pub fn get_code_entity(state: State<'_, DbState>, id: String) -> Result<Value, S
 }
 
 #[tauri::command]
+pub fn get_note(state: State<'_, DbState>, id: String) -> Result<Value, String> {
+    let row = notes::get(state.lock().db(), &id).map_err(err)?;
+    serde_json::to_value(row).map_err(err)
+}
+
+#[tauri::command]
+pub fn get_decision(state: State<'_, DbState>, id: String) -> Result<Value, String> {
+    let row = decisions::get(state.lock().db(), &id).map_err(err)?;
+    serde_json::to_value(row).map_err(err)
+}
+
+#[tauri::command]
+pub fn get_artifact(state: State<'_, DbState>, id: String) -> Result<Value, String> {
+    let row = artifacts::get(state.lock().db(), &id).map_err(err)?;
+    serde_json::to_value(row).map_err(err)
+}
+
+#[tauri::command]
 pub fn search_code_entities(
     state: State<'_, DbState>,
     query: String,
@@ -318,16 +336,126 @@ pub fn get_related(
 pub fn search_all(
     state: State<'_, DbState>,
     query: String,
-    project_id: Option<String>,
+    project_id: String,
     limit: Option<i64>,
 ) -> Result<Value, String> {
     let res = mcp_memory::repo::search::search_all(
         state.lock().db(),
         &query,
-        project_id.as_deref(),
+        &project_id,
         limit.unwrap_or(50),
         false,
     )
     .map_err(err)?;
     serde_json::to_value(res).map_err(err)
+}
+
+// ─── session_focus ──────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn get_focus(state: State<'_, DbState>, session_id: String) -> Result<Value, String> {
+    let row = session_focus::get(state.lock().db(), &session_id).map_err(err)?;
+    serde_json::to_value(row).map_err(err)
+}
+
+#[tauri::command]
+pub fn get_latest_focus_for_project(
+    state: State<'_, DbState>,
+    project_id: String,
+) -> Result<Value, String> {
+    let row = session_focus::get_latest_for_project(state.lock().db(), &project_id).map_err(err)?;
+    serde_json::to_value(row).map_err(err)
+}
+
+// ─── project_paths ─────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn list_project_paths(
+    state: State<'_, DbState>,
+    project_id: String,
+) -> Result<Value, String> {
+    let rows = project_paths::list_for_project(state.lock().db(), &project_id).map_err(err)?;
+    serde_json::to_value(rows).map_err(err)
+}
+
+// ─── project_threads (R/W) ─────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn list_project_threads(
+    state: State<'_, DbState>,
+    project_id: String,
+    status: Option<String>,
+) -> Result<Value, String> {
+    let rows = project_threads::list_by_project(
+        state.lock().db(),
+        &project_id,
+        status.as_deref(),
+    )
+    .map_err(err)?;
+    serde_json::to_value(rows).map_err(err)
+}
+
+#[tauri::command]
+pub fn open_thread(
+    state: State<'_, DbState>,
+    project_id: String,
+    thread: String,
+    session_id: String,
+) -> Result<Value, String> {
+    let row = project_threads::open(state.lock().db(), &project_id, &thread, &session_id)
+        .map_err(err)?;
+    serde_json::to_value(row).map_err(err)
+}
+
+#[tauri::command]
+pub fn close_thread(
+    state: State<'_, DbState>,
+    thread_id: String,
+    status: String,
+    reason: Option<String>,
+    session_id: String,
+) -> Result<Value, String> {
+    let row = project_threads::close(
+        state.lock().db(),
+        &thread_id,
+        &status,
+        reason.as_deref(),
+        &session_id,
+    )
+    .map_err(err)?;
+    serde_json::to_value(row).map_err(err)
+}
+
+#[tauri::command]
+pub fn touch_thread(state: State<'_, DbState>, thread_id: String) -> Result<bool, String> {
+    project_threads::touch(state.lock().db(), &thread_id).map_err(err)
+}
+
+#[tauri::command]
+pub fn mark_stale_threads(
+    state: State<'_, DbState>,
+    project_id: String,
+    days: i64,
+) -> Result<usize, String> {
+    project_threads::mark_stale_older_than(state.lock().db(), &project_id, days).map_err(err)
+}
+
+// ─── judge relation ────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn judge_relation(
+    state: State<'_, DbState>,
+    sync_id: String,
+    status: String,
+) -> Result<(), String> {
+    // Actor triple: the viewer is a human tool. `marked_by_model` empty.
+    relations::judge(
+        state.lock().db(),
+        &sync_id,
+        &status,
+        "viewer",
+        "human",
+        "",
+    )
+    .map_err(err)
 }

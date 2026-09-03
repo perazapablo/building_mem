@@ -220,7 +220,8 @@
 }
 
 .detail-pane {
-  width: 26rem;
+  width: clamp(15rem, 30vw, 26rem);
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;

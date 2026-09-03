@@ -13,7 +13,7 @@
         <div class="dot"></div>
         <div class="body">
           <div class="title">{{ s.title || '(sin título)' }}</div>
-          <div class="date">{{ s.updated_at || s.created_at }}</div>
+          <div class="date" [title]="(s.updated_at || s.created_at) | dateAbs">{{ (s.updated_at || s.created_at) | dateRel }}</div>
         </div>
       </li>
       <li *ngIf="!sessions().length" class="empty">sin sesiones</li>
@@ -23,7 +23,7 @@
   <section class="detail" *ngIf="selected() as s">
     <header>
       <h3>{{ s.title }}</h3>
-      <span class="meta">{{ s.updated_at || s.created_at }}</span>
+      <span class="meta" [title]="(s.updated_at || s.created_at) | dateFull">{{ (s.updated_at || s.created_at) | dateAbs }}</span>
     </header>
 
     <div class="detail-scroll">
@@ -38,11 +38,21 @@
         </div>
         <div class="block" *ngIf="sum.decisions_ref?.length">
           <h4>Decisions referenciadas <span class="count">{{ sum.decisions_ref?.length }}</span></h4>
-          <ul class="ids"><li *ngFor="let id of sum.decisions_ref">{{ id }}</li></ul>
+          <ul class="ref-list">
+            <li *ngFor="let r of decisionRows(sum.decisions_ref)" (click)="openDecision(r.id)">
+              <span class="preview">{{ r.preview }}</span>
+              <span class="ref-meta" *ngIf="r.meta">{{ r.meta }}</span>
+            </li>
+          </ul>
         </div>
         <div class="block" *ngIf="sum.artifacts_ref?.length">
           <h4>Artifacts referenciados <span class="count">{{ sum.artifacts_ref?.length }}</span></h4>
-          <ul class="ids"><li *ngFor="let id of sum.artifacts_ref">{{ id }}</li></ul>
+          <ul class="ref-list">
+            <li *ngFor="let r of artifactRows(sum.artifacts_ref)" (click)="openArtifact(r.id)">
+              <span class="preview">{{ r.preview }}</span>
+              <span class="ref-meta" *ngIf="r.meta">{{ r.meta }}</span>
+            </li>
+          </ul>
         </div>
         <div class="block" *ngIf="sum.pending?.length">
           <h4>Pending</h4>
@@ -52,6 +62,81 @@
           <h4>Blockers</h4>
           <ul class="blockers"><li *ngFor="let b of sum.blockers">{{ b }}</li></ul>
         </div>
+
+        <div class="block" *ngIf="sum.threads_closed?.length">
+          <h4>Threads cerrados <span class="count">{{ sum.threads_closed?.length }}</span></h4>
+          <ul class="ref-list">
+            <li *ngFor="let r of threadRows(sum.threads_closed)" (click)="openThread(r.id)">
+              <span class="preview">{{ r.preview }}</span>
+              <span class="ref-meta" *ngIf="r.meta">{{ r.meta }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <ng-container *ngIf="sum.stats as st">
+          <div class="block">
+            <h4>Stats de sesión</h4>
+            <div class="stats-grid">
+              <div class="stat"><div class="k">turns</div><div class="v">{{ st.turns ?? 0 }}</div></div>
+              <div class="stat"><div class="k">duración</div><div class="v">{{ st.duration_min ?? 0 }}<span class="unit">min</span></div></div>
+              <div class="stat"><div class="k">commits</div><div class="v">{{ st.commits?.length ?? 0 }}</div></div>
+              <div class="stat"><div class="k">archivos</div><div class="v">{{ st.files_edited?.length ?? 0 }}</div></div>
+              <div class="stat"><div class="k">bash fx</div><div class="v">{{ st.bash_effects?.length ?? 0 }}</div></div>
+              <div class="stat"><div class="k">code entities</div><div class="v">{{ st.code_entities_touched?.length ?? 0 }}</div></div>
+              <div class="stat" [class.warn]="(st.tool_errors ?? 0) > 0"><div class="k">errores</div><div class="v">{{ st.tool_errors ?? 0 }}</div></div>
+              <div class="stat"><div class="k">mem writes</div><div class="v">{{ memoryWritesTotal(st) }}</div></div>
+            </div>
+          </div>
+
+          <div class="block" *ngIf="st.last_focus">
+            <h4>Último focus</h4>
+            <p class="focus-line">{{ st.last_focus }}</p>
+          </div>
+
+          <div class="block" *ngIf="st.commits?.length">
+            <h4>Commits</h4>
+            <div class="chips mono">
+              <span class="chip" *ngFor="let c of st.commits">{{ c }}</span>
+            </div>
+          </div>
+
+          <div class="block" *ngIf="st.files_edited?.length">
+            <h4>Archivos editados <span class="count">{{ st.files_edited?.length }}</span></h4>
+            <ul class="files">
+              <li *ngFor="let f of st.files_edited">
+                <span class="path">{{ f.path }}</span>
+                <span class="badge">{{ f.edits }}×</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="block" *ngIf="st.bash_effects?.length">
+            <h4>Bash con efectos <span class="count">{{ st.bash_effects?.length }}</span></h4>
+            <ul class="bash-list">
+              <li *ngFor="let b of st.bash_effects" [class.err]="b.exit !== 0">
+                <span class="badge" [class.ok]="b.exit === 0" [class.err]="b.exit !== 0">{{ b.exit }}</span>
+                <span class="cmd">{{ b.cmd }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="block" *ngIf="memoryWritesEntries(st).length">
+            <h4>Memory writes</h4>
+            <div class="chips">
+              <span class="chip" *ngFor="let e of memoryWritesEntries(st)">
+                {{ e.name }} <span class="chip-count">{{ e.count }}</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="block" *ngIf="st.code_entities_touched?.length">
+            <h4>Code entities tocados</h4>
+            <div class="chips mono">
+              <span class="chip" *ngFor="let id of st.code_entities_touched">{{ id }}</span>
+            </div>
+          </div>
+        </ng-container>
+
         <div class="block" *ngIf="sum.notes">
           <h4>Notes</h4>
           <p>{{ sum.notes }}</p>
@@ -59,13 +144,9 @@
       </ng-container>
 
       <div class="block" *ngIf="workingState() as ws">
-        <h4>Working state</h4>
+        <h4>Working state <span class="legacy-tag">legacy</span></h4>
         <div class="ws">
           <div><span>focus:</span> {{ ws.focus || '—' }}</div>
-          <div *ngIf="ws.open_threads.length">
-            <span>open threads:</span>
-            <ul><li *ngFor="let t of ws.open_threads">{{ t }}</li></ul>
-          </div>
           <div *ngIf="ws.pinned_ids.length">
             <span>pinned:</span>
             <div class="chips">
@@ -79,4 +160,25 @@
   <section class="detail empty-pane" *ngIf="!selected()">
     <p>Seleccioná una sesión.</p>
   </section>
+
+  <div class="modal-backdrop" *ngIf="modal() as m" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <header>
+        <div class="modal-title">
+          <h4>{{ m.title }}</h4>
+          <span class="modal-subtitle" *ngIf="m.subtitle">{{ m.subtitle }}</span>
+        </div>
+        <button type="button" class="close" (click)="closeModal()" aria-label="Cerrar">×</button>
+      </header>
+      <div class="modal-body">
+        <pre>{{ m.body }}</pre>
+      </div>
+      <footer *ngIf="m.meta?.length">
+        <div class="meta-item" *ngFor="let kv of m.meta">
+          <span class="k">{{ kv.k }}</span>
+          <span class="v">{{ kv.v }}</span>
+        </div>
+      </footer>
+    </div>
+  </div>
 </div>

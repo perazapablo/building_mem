@@ -11,6 +11,8 @@ import {
 } from '../../core/models';
 import { TauriService } from '../../core/tauri.service';
 import { WorkspaceService } from '../../core/workspace.service';
+import { DateAbsPipe, DateRelPipe } from '../../core/date.pipes';
+import { AuditTrailComponent } from '../../shared/audit-trail/audit-trail.component';
 
 type KnowledgeKind = 'decisions' | 'artifacts' | 'notes';
 
@@ -23,7 +25,7 @@ interface Selection {
 @Component({
   selector: 'app-knowledge',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DateAbsPipe, DateRelPipe, AuditTrailComponent],
   templateUrl: './knowledge.component.html',
   styleUrl: './knowledge.component.scss',
 })

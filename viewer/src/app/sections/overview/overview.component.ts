@@ -3,6 +3,7 @@ import { Component, computed, effect, signal } from '@angular/core';
 import {
   ContextSummary,
   Project,
+  ProjectPath,
   Relation,
   SessionRow,
   WorkingState,
@@ -10,12 +11,14 @@ import {
 import { TauriService } from '../../core/tauri.service';
 import { WorkspaceService } from '../../core/workspace.service';
 import { SectionCardComponent } from '../../shared/section-card/section-card.component';
+import { DateAbsPipe, DateRelPipe } from '../../core/date.pipes';
 
 interface OverviewSnapshot {
   project: Project;
   sessions: SessionRow[];
   pendingRelations: Relation[];
   workingStates: WorkingState[];
+  paths: ProjectPath[];
   counts: {
     notes: number;
     decisions: number;
@@ -28,7 +31,7 @@ interface OverviewSnapshot {
 @Component({
   selector: 'app-overview',
   standalone: true,
-  imports: [CommonModule, SectionCardComponent],
+  imports: [CommonModule, SectionCardComponent, DateAbsPipe, DateRelPipe],
   templateUrl: './overview.component.html',
   styleUrl: './overview.component.scss',
 })
@@ -54,7 +57,7 @@ export class OverviewComponent {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const [sessions, pendingRelations, workingStates, notes, decisions, artifacts, code] =
+      const [sessions, pendingRelations, workingStates, notes, decisions, artifacts, code, paths] =
         await Promise.all([
           this.tauri.listSessions(p.id),
           this.tauri.getPendingJudgments(p.id, 50),
@@ -63,6 +66,7 @@ export class OverviewComponent {
           this.tauri.listDecisions(p.id),
           this.tauri.listArtifacts(p.id),
           this.tauri.listCodeEntities(p.id),
+          this.tauri.listProjectPaths(p.id),
         ]);
       const sessionIds = new Set(sessions.map((s) => s.id));
       this.snapshot.set({
@@ -70,6 +74,7 @@ export class OverviewComponent {
         sessions: sessions.slice(0, 8),
         pendingRelations,
         workingStates: workingStates.filter((w) => sessionIds.has(w.session_id)),
+        paths,
         counts: {
           notes: notes.length,
           decisions: decisions.length,
@@ -93,5 +98,15 @@ export class OverviewComponent {
   sessionOutcome(s: SessionRow): string {
     const sum = s.summary as any;
     return sum?.outcome || '';
+  }
+
+  async copyPath(path: string) {
+    try {
+      await navigator.clipboard.writeText(path);
+    } catch { /* silent */ }
+  }
+
+  pinnedCount(states: WorkingState[]): number {
+    return states.reduce((n, ws) => n + (ws.pinned_ids?.length ?? 0), 0);
   }
 }

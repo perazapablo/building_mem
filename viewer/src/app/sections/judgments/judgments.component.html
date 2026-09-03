@@ -1,0 +1,107 @@
+<div class="judgments">
+  <header class="head">
+    <div class="title">
+      <h3>Relaciones pendientes de juicio</h3>
+      <span class="count">{{ sorted().length }}</span>
+    </div>
+    <p class="hint">
+      Relaciones auto-generadas entre entidades. Ordenadas por confianza. Click para expandir y ver qué son las entidades involucradas antes de decidir.
+    </p>
+  </header>
+
+  <div *ngIf="loading()" class="status">cargando…</div>
+  <div *ngIf="error()" class="error">{{ error() }}</div>
+  <div *ngIf="!loading() && !sorted().length" class="empty">no hay relaciones pendientes</div>
+
+  <ul class="list" *ngIf="sorted().length">
+    <li *ngFor="let r of sorted()" class="row" [class.busy]="busyId() === r.sync_id" [class.open]="isExpanded(r.sync_id)">
+      <!-- Header: siempre visible, clickeable para expandir -->
+      <button type="button" class="row-head" (click)="toggle(r)">
+        <div class="conf-col">
+          <div class="conf-bar">
+            <div class="fill" [class]="confidenceClass(r.confidence)"
+              [style.width.%]="r.confidence * 100"></div>
+          </div>
+          <span class="conf-val" [class]="confidenceClass(r.confidence)">{{ (r.confidence * 100).toFixed(0) }}%</span>
+        </div>
+
+        <div class="rel-col">
+          <div class="rel-line">
+            <span class="ent">
+              <span class="pill" [attr.data-type]="r.source_type">{{ entityLabel(r.source_type) }}</span>
+              <span class="id" [title]="r.source_id">{{ r.source_id.slice(0, 8) }}…</span>
+            </span>
+            <span class="arrow">— {{ r.relation }} →</span>
+            <span class="ent">
+              <span class="pill" [attr.data-type]="r.target_type">{{ entityLabel(r.target_type) }}</span>
+              <span class="id" [title]="r.target_id">{{ r.target_id.slice(0, 8) }}…</span>
+            </span>
+          </div>
+          <div class="reason" *ngIf="r.reason">
+            <span class="k">razón</span><span class="v">{{ r.reason }}</span>
+          </div>
+        </div>
+
+        <div class="chevron">{{ isExpanded(r.sync_id) ? '▾' : '▸' }}</div>
+
+        <div class="actions-col" (click)="$event.stopPropagation()">
+          <button type="button" class="accept" (click)="judge(r, 'accepted', $event)" [disabled]="busyId() === r.sync_id">Aceptar</button>
+          <button type="button" class="reject" (click)="judge(r, 'rejected', $event)" [disabled]="busyId() === r.sync_id">Rechazar</button>
+        </div>
+      </button>
+
+      <!-- Body: expandido -->
+      <div class="row-body" *ngIf="isExpanded(r.sync_id)">
+        <div class="side">
+          <div class="side-head">
+            <span class="pill" [attr.data-type]="r.source_type">{{ entityLabel(r.source_type) }} · origen</span>
+            <span class="side-id" [title]="r.source_id">{{ r.source_id.slice(0, 12) }}…</span>
+          </div>
+          <ng-container [ngSwitch]="entityOf(r.source_type, r.source_id) === 'loading' ? 'loading' :
+            entityOf(r.source_type, r.source_id) === 'error' || entityOf(r.source_type, r.source_id) === null ? 'error' : 'ok'">
+            <div *ngSwitchCase="'loading'" class="side-status">cargando…</div>
+            <div *ngSwitchCase="'error'" class="side-status side-error">no se pudo cargar esta entidad</div>
+            <ng-container *ngSwitchCase="'ok'">
+              <ng-container *ngIf="entityOf(r.source_type, r.source_id) as sv">
+                <ng-container *ngIf="isEntity(sv)">
+                  <div class="side-title">{{ entityTitle(sv) }}</div>
+                  <pre class="side-body">{{ entityBody(sv) }}</pre>
+                </ng-container>
+              </ng-container>
+            </ng-container>
+          </ng-container>
+        </div>
+
+        <div class="side">
+          <div class="side-head">
+            <span class="pill" [attr.data-type]="r.target_type">{{ entityLabel(r.target_type) }} · destino</span>
+            <span class="side-id" [title]="r.target_id">{{ r.target_id.slice(0, 12) }}…</span>
+          </div>
+          <ng-container [ngSwitch]="entityOf(r.target_type, r.target_id) === 'loading' ? 'loading' :
+            entityOf(r.target_type, r.target_id) === 'error' || entityOf(r.target_type, r.target_id) === null ? 'error' : 'ok'">
+            <div *ngSwitchCase="'loading'" class="side-status">cargando…</div>
+            <div *ngSwitchCase="'error'" class="side-status side-error">no se pudo cargar esta entidad</div>
+            <ng-container *ngSwitchCase="'ok'">
+              <ng-container *ngIf="entityOf(r.target_type, r.target_id) as tv">
+                <ng-container *ngIf="isEntity(tv)">
+                  <div class="side-title">{{ entityTitle(tv) }}</div>
+                  <pre class="side-body">{{ entityBody(tv) }}</pre>
+                </ng-container>
+              </ng-container>
+            </ng-container>
+          </ng-container>
+        </div>
+
+        <div class="extra">
+          <div *ngIf="r.evidence">
+            <span class="k">evidencia</span><span class="v">{{ r.evidence }}</span>
+          </div>
+          <div class="meta">
+            <span [title]="r.created_at | dateAbs">creada {{ r.created_at | dateRel }}</span>
+            <span *ngIf="r.session_id">· session {{ r.session_id.slice(0, 8) }}…</span>
+          </div>
+        </div>
+      </div>
+    </li>
+  </ul>
+</div>

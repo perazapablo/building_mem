@@ -81,7 +81,12 @@
         <div><span>importance</span>{{ e.importance }}</div>
         <div><span>revisions</span>{{ e.revision_count }}</div>
         <div><span>topic_key</span>{{ e.topic_key || '—' }}</div>
-        <div><span>updated</span>{{ e.updated_at || e.created_at }}</div>
+        <div><span>updated</span><span [title]="(e.updated_at || e.created_at) | dateAbs">{{ (e.updated_at || e.created_at) | dateRel }}</span></div>
+      </section>
+
+      <section class="block">
+        <h4>Historial de cambios</h4>
+        <app-audit-trail entityType="code_entity" [entityId]="e.id"></app-audit-trail>
       </section>
     </div>
   </aside>

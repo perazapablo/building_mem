@@ -1,14 +1,45 @@
 :root {
   color-scheme: dark;
+
+  /* Palette */
   --bg: #0e0e0e;
   --bg-elev: #161616;
   --bg-elev-2: #1c1c1c;
-  --fg: #ddd;
-  --fg-dim: #888;
+  --fg: #e6e6e6;
+  --fg-dim: #9a9a9a;
   --border: #2a2a2a;
+  --border-strong: #383838;
   --accent: #4ec9b0;
   --accent-2: #569cd6;
+  --warn: #eab308;
+  --ok: #10b981;
   --danger: #f48771;
+
+  /* Typography scale (rem-based on 14px root) */
+  --fs-xs:  0.75rem;
+  --fs-sm:  0.85rem;
+  --fs-md:  1rem;
+  --fs-lg:  1.1rem;
+  --fs-xl:  1.35rem;
+  --fs-2xl: 1.75rem;
+  --fs-3xl: 2.4rem;
+
+  /* Spacing */
+  --sp-1: 0.35rem;
+  --sp-2: 0.6rem;
+  --sp-3: 0.9rem;
+  --sp-4: 1.2rem;
+  --sp-5: 1.6rem;
+  --sp-6: 2.2rem;
+
+  /* Radii */
+  --r-sm: 3px;
+  --r-md: 5px;
+  --r-lg: 8px;
+
+  /* Shadows */
+  --shadow-card: 0 6px 22px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 0 1px rgba(78, 201, 176, 0.25);
 }
 
 * {
@@ -23,7 +54,8 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: ui-monospace, "JetBrains Mono", "Cascadia Code", Consolas, "Courier New", monospace;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.5;
   overflow: hidden;
 }
 
@@ -32,26 +64,72 @@ input,
 select,
 textarea {
   font-family: inherit;
+  font-size: inherit;
 }
 
 a {
   color: var(--accent-2);
 }
 
+/* ─── Utility classes shared across sections ──────────────────────── */
+
+.pane {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--sp-5) var(--sp-6) var(--sp-6);
+}
+
+.pane-title {
+  color: var(--fg);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0;
+}
+
+.pane-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-1);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-3);
+
+  .count {
+    color: var(--accent);
+    font-size: var(--fs-sm);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+}
+
+.card-hover {
+  transition: transform 0.14s, border-color 0.14s, background 0.14s, box-shadow 0.14s;
+
+  &:hover {
+    border-color: var(--accent);
+    background: var(--bg-elev-2);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card), var(--shadow-glow);
+  }
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────────── */
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
-
 ::-webkit-scrollbar-track {
   background: #0e0e0e;
 }
-
 ::-webkit-scrollbar-thumb {
   background: #2c2c2c;
   border-radius: 4px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: #3a3a3a;
 }

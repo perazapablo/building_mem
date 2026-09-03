@@ -4,6 +4,7 @@
     <span class="path" [title]="dbPath()">{{ dbPath() }}</span>
   </div>
   <div class="right">
+    <app-global-search></app-global-search>
     <ng-container *ngIf="counts() as c">
       <span class="count" title="projects">p:{{ c.projects }}</span>
       <span class="count" title="sessions">s:{{ c.sessions }}</span>
@@ -18,5 +19,14 @@
     <button type="button" (click)="refresh()" [disabled]="loading()">↻</button>
     <button type="button" (click)="pickDb()">abrir otra BD…</button>
   </div>
+
+  <div class="focus-bar" *ngIf="ws.current() as p">
+    <span class="focus-label">focus</span>
+    <span class="focus-project">{{ p.name }}</span>
+    <span class="focus-sep" *ngIf="focus()">›</span>
+    <span class="focus-text" *ngIf="focus() as f" [title]="f.updated_at | dateFull">{{ f.focus }}</span>
+    <span class="focus-empty" *ngIf="!focus()">sin focus registrado</span>
+  </div>
+
   <div *ngIf="error()" class="error">{{ error() }}</div>
 </header>

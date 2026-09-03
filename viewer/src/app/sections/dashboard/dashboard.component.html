@@ -1,0 +1,67 @@
+<div class="dashboard">
+  <header class="hero">
+    <div class="hero-text">
+      <h1>MCP Memory</h1>
+      <p>Todos tus proyectos y sesiones recientes en un solo lugar.</p>
+    </div>
+    <div class="hero-stats">
+      <div class="stat">
+        <span class="v">{{ totalProjects() }}</span>
+        <span class="k">Proyectos</span>
+      </div>
+      <div class="stat" [class.warn]="totalOpenThreads() > 0">
+        <span class="v">{{ totalOpenThreads() }}</span>
+        <span class="k">Hilos abiertos</span>
+      </div>
+      <button type="button" class="refresh" (click)="load()" [disabled]="loading()">↻ actualizar</button>
+    </div>
+  </header>
+
+  <div *ngIf="loading()" class="status">cargando…</div>
+  <div *ngIf="error()" class="error">{{ error() }}</div>
+
+  <section class="block" *ngIf="cards().length">
+    <div class="block-head">
+      <h2>Proyectos</h2>
+      <span class="block-count">{{ cards().length }}</span>
+    </div>
+    <div class="grid">
+      <article *ngFor="let c of cards()" class="card" (click)="openProject(c.project)">
+        <header>
+          <span class="name">{{ c.project.name }}</span>
+          <span class="type">{{ c.project.project_type }}</span>
+        </header>
+        <p class="desc" *ngIf="c.project.description">{{ c.project.description }}</p>
+        <div class="tags" *ngIf="c.project.tags?.length">
+          <span class="tag" *ngFor="let t of c.project.tags.slice(0, 5)">{{ t }}</span>
+        </div>
+        <footer>
+          <span class="threads" [class.warn]="c.openThreads > 0"
+            [title]="c.openThreads + ' hilos abiertos'">
+            {{ c.openThreads }} {{ c.openThreads === 1 ? 'hilo' : 'hilos' }}
+          </span>
+          <span class="upd" [title]="c.project.updated_at | dateAbs">
+            {{ c.project.updated_at | dateRel }}
+          </span>
+        </footer>
+      </article>
+    </div>
+  </section>
+
+  <section class="block" *ngIf="recent().length">
+    <div class="block-head">
+      <h2>Últimas sesiones</h2>
+      <span class="block-count">global</span>
+    </div>
+    <ul class="sessions">
+      <li *ngFor="let r of recent()" (click)="openSession(r)">
+        <span class="s-title">{{ r.session.title || '(sin título)' }}</span>
+        <span class="s-project">{{ r.projectName }}</span>
+        <span class="s-goal" *ngIf="r.goal">{{ r.goal }}</span>
+        <span class="s-date" [title]="(r.session.updated_at || r.session.created_at) | dateAbs">
+          {{ (r.session.updated_at || r.session.created_at) | dateRel }}
+        </span>
+      </li>
+    </ul>
+  </section>
+</div>
