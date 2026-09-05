@@ -34,6 +34,12 @@ done
 [ -f "$WIN_HOME/.config/AGENTS.md" ] && cp "$WIN_HOME/.config/AGENTS.md" "$STAGE/dot-config/AGENTS.md"
 
 echo "[3/7] repo mcp-learning (sin target/, node_modules/, dist/, memory.db*)"
+# OJO con el anclaje de los excludes: un patron que arranca con './' es una RUTA
+# desde el raiz del archivo, no un nombre. './node_modules' dejaba pasar
+# 'harness/node_modules' (99 MB, 8789 archivos), que ademas de inflar el bundle
+# hacia morir al tar a mitad de camino y truncaba todo lo que venia despues
+# alfabeticamente: rust/, viewer/, migration/ y memory.db. Sin el './' matchea a
+# cualquier profundidad, que es lo que se queria.
 copy_tree "$WIN_HOME/.config/mcp-learning" "$STAGE/mcp-repo" \
   --exclude='./rust/target' \
   --exclude='./rust/target-check' \
@@ -44,7 +50,7 @@ copy_tree "$WIN_HOME/.config/mcp-learning" "$STAGE/mcp-repo" \
   --exclude='./viewer/.angular' \
   --exclude='./viewer/src-tauri/target' \
   --exclude='./viewer/src-tauri/gen' \
-  --exclude='./node_modules' \
+  --exclude='node_modules' \
   --exclude='./.git' \
   --exclude='./memory.db' \
   --exclude='./memory.db-shm' \
@@ -127,6 +133,57 @@ chmod +x "$STAGE/install-on-linux.sh"
 
 echo "==> Empaquetando..."
 tar -czf "$TARBALL" -C "$STAGE" .
+
+# --- Verificacion del artefacto ------------------------------------------
+# Un bundle incompleto se ve exactamente igual que uno bueno: mismo nombre,
+# extension valida, tamano plausible. El 2026-09-05 salio uno sin memory.db,
+# sin rust/ y sin viewer/ porque el tar murio dentro de harness/node_modules, y
+# el script igual imprimio OK. Se detecta aca, o se detecta en la maquina nueva
+# sin la vieja para volver.
+echo "==> Verificando el tarball..."
+LISTING="$(mktemp)"
+trap 'rm -f "$LISTING"' EXIT
+tar -tzf "$TARBALL" > "$LISTING"
+
+MISSING=0
+require() {
+  # $1 = patron grep (anclado), $2 = descripcion para el humano
+  if ! grep -q "$1" "$LISTING"; then
+    echo "  FALTA: $2"
+    MISSING=$((MISSING + 1))
+  fi
+}
+
+require '^\./mcp-repo/memory\.db$'           "memory.db (la BD del MCP)"
+require '^\./mcp-repo/rust/Cargo\.toml$'     "rust/ (crate del servidor MCP)"
+require '^\./mcp-repo/viewer/package\.json$' "viewer/"
+require '^\./mcp-repo/migration/'            "migration/"
+require '^\./merge-claude-json\.cjs$'        "merge-claude-json.cjs"
+require '^\./install-on-linux\.sh$'          "install-on-linux.sh"
+require '^\./dot-claude/settings\.json$'     "dot-claude/settings.json"
+require '^\./dot-config/agent-rules/'        "dot-config/agent-rules/"
+require '^\./auto-memory/'                   "auto-memory/"
+
+# La BD es el unico contenido irrecuperable del bundle: todo lo demas se vuelve
+# a clonar o a buildear. Se compara el tamano contra el original, porque una
+# copia truncada aparece en el listado igual que una entera.
+DB_IN_TAR="$(tar -tzvf "$TARBALL" | awk '$NF == "./mcp-repo/memory.db" { print $3 }')"
+DB_REAL="$(wc -c < "$DB_PATH" | tr -d ' ')"
+if [ -n "$DB_IN_TAR" ] && [ "$DB_IN_TAR" != "$DB_REAL" ]; then
+  echo "  memory.db TRUNCADA: $DB_IN_TAR bytes en el bundle vs $DB_REAL en origen"
+  MISSING=$((MISSING + 1))
+fi
+
+if [ "$MISSING" -gt 0 ]; then
+  echo ""
+  echo "!! BUNDLE INCOMPLETO ($MISSING faltantes). NO migres con este archivo."
+  echo "!! Revisa la salida de arriba por errores de tar y volve a correr."
+  rm -f "$TARBALL"
+  exit 1
+fi
+
+echo "  OK: $(wc -l < "$LISTING" | tr -d ' ') entradas, memory.db $DB_REAL bytes."
+
 SIZE=$(du -h "$TARBALL" | cut -f1)
 echo ""
 echo "OK -> $TARBALL ($SIZE)"
