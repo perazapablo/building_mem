@@ -28,7 +28,9 @@
 //   Artefacto de la tarea escrito en la fase equivocada       → ask
 //   state.json / puntero de sesión a mano                     → deny
 //   Artefactos de OTRA tarea                                  → deny
-//   decision_record en fase sin captura / phase mismatch      → deny
+//   decision_record con phase declarado ≠ fase real           → deny
+//   (registrar una decisión NUNCA se bloquea por el workflow: perder el
+//    registro no deshace la decisión, y es el dato que este sistema cuida)
 //   Varias tareas activas sin dueña                           → deny (use <id>)
 //
 // Sin tarea activa → no hay contrato de fase → no interviene.
@@ -48,11 +50,20 @@ const ARTIFACTS_WRITABLE = {
 
 const CODE_WRITE_PHASES = new Set(['implementation', 'verification']);
 
-const DECISION_CAPTURE = {
-  directo: [],
-  estandar: ['planning', 'implementation'],
-  libre: null, // sin máquina: no interviene
-};
+// NO hay lista de "fases que capturan decisiones".
+//
+// Existió: `directo: []` (ninguna) y `estandar: ['planning','implementation']`,
+// y todo decision_record fuera de esas fases moría en deny. El argumento era que
+// una decisión en una tarea `directo` prueba que estaba mal clasificada. El
+// diagnóstico es correcto; la sanción no. Bloquear el REGISTRO no deshace la
+// decisión: solo la pierde. La tarea queda igual de mal clasificada y encima sin
+// rastro de qué se decidió — que es justo el dato que este sistema existe para
+// no perder. La misclassification se corrige con `escalate`, no cobrándola con
+// el borrado del dato.
+//
+// Lo que sí se sigue exigiendo es que el `phase` declarado en el payload no
+// mienta sobre la fase real (ver más abajo): eso mantiene la columna honesta sin
+// costar nada.
 
 const TASKS_DIR = 'tasks';
 const STATE_FILE = 'state.json';
@@ -271,18 +282,6 @@ function decide(state, root, toolName, toolInput, taskDir) {
   }
 
   if (toolName === 'mcp__memory__decision_record') {
-    const capture = DECISION_CAPTURE[workflow];
-    if (capture === null || capture === undefined) return allow();
-    if (!capture.includes(phase)) {
-      return deny(
-        workflow === 'directo'
-          ? `Apareció una decisión en una tarea 'directo': la tarea estaba mal clasificada. ` +
-              `Decile al humano qué hay que decidir y ofrecé escalar (phase-cli escalate) ` +
-              `o que lo resuelva en una línea.`
-          : `La fase '${phase}' no captura decisiones (captura: ${capture.join(', ')}). ` +
-              `Si es una decisión real, anotala para registrarla al entrar a la fase correcta.`,
-      );
-    }
     // El `phase` del payload es autodeclarado por el modelo: se verifica
     // contra el estado real. Sin esto la columna vuelve a ser una opinión.
     const declared = toolInput?.phase;

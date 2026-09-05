@@ -13,7 +13,35 @@
     "plan": "plan.md"
   },
   "diff_scope": null,
-  "scope_amendments": [],
+  "scope_amendments": [
+    {
+      "path": "harness/phase-gate.cjs",
+      "kind": "early_write",
+      "phase": "planning",
+      "at": "2026-09-04T22:28:05.282Z",
+      "session_id": "fd27e961-7936-4304-aac7-78ed8a158a7c",
+      "approved_by": "human",
+      "reason": null
+    },
+    {
+      "path": "sync-rules-hook.cjs",
+      "kind": "early_write",
+      "phase": "planning",
+      "at": "2026-09-05T05:37:14.375Z",
+      "session_id": "214b2946-a989-4eea-a169-b8a5f65c9ea8",
+      "approved_by": "human",
+      "reason": null
+    },
+    {
+      "path": "rust/src/paths.rs",
+      "kind": "early_write",
+      "phase": "planning",
+      "at": "2026-09-05T05:47:24.951Z",
+      "session_id": "214b2946-a989-4eea-a169-b8a5f65c9ea8",
+      "approved_by": "human",
+      "reason": null
+    }
+  ],
   "commands": {},
   "escalations": [],
   "transitions": [
@@ -36,5 +64,5 @@
     "bc6e8e8a-58d0-4112-b3a9-6037124dba67"
   ],
   "created_at": "2026-09-03T07:40:11.837Z",
-  "updated_at": "2026-09-03T18:15:04.376Z"
+  "updated_at": "2026-09-05T05:47:24.953Z"
 }
