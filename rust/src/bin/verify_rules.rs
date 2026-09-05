@@ -6,10 +6,10 @@
 //! Usage:
 //!     verify-rules [--root <path>] [--claude-settings <path>] [--opencode-config <path>] [--quiet]
 //!
-//! Defaults (Pablo's env):
-//!     --root              C:/Users/Desarrollos/.config/agent-rules
-//!     --claude-settings   C:/Users/Desarrollos/.claude/settings.json
-//!     --opencode-config   C:/Users/Desarrollos/.config/opencode/opencode.json
+//! Defaults (relativos al home del usuario):
+//!     --root              ~/.config/agent-rules
+//!     --claude-settings   ~/.claude/settings.json
+//!     --opencode-config   ~/.config/opencode/opencode.json
 //!
 //! Exit codes:
 //!     0 — ok
@@ -17,6 +17,7 @@
 //!     2 — failures present
 
 use anyhow::{anyhow, Context, Result};
+use mcp_memory::paths;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
@@ -33,6 +34,23 @@ struct Args {
     claude_settings: PathBuf,
     opencode_config: PathBuf,
     quiet: bool,
+}
+
+/// The explicit path if the caller gave one, otherwise the convention under $HOME.
+///
+/// Errors instead of guessing when there is no home: a wrong default makes
+/// verify report "missing" for files that do exist, sending the user to look
+/// for the problem in the wrong place.
+fn resolve(explicit: Option<PathBuf>, under: &[&str]) -> Result<PathBuf> {
+    if let Some(p) = explicit {
+        return Ok(p);
+    }
+    paths::under_home(under).ok_or_else(|| {
+        anyhow!(
+            "cannot resolve home (HOME/USERPROFILE unset): pass an explicit path for ~/{}",
+            under.join("/")
+        )
+    })
 }
 
 fn parse_args() -> Result<Args> {
@@ -57,9 +75,9 @@ fn parse_args() -> Result<Args> {
     }
 
     Ok(Args {
-        root: root.unwrap_or_else(|| PathBuf::from("C:/Users/Desarrollos/.config/agent-rules")),
-        claude_settings: claude_settings.unwrap_or_else(|| PathBuf::from("C:/Users/Desarrollos/.claude/settings.json")),
-        opencode_config: opencode_config.unwrap_or_else(|| PathBuf::from("C:/Users/Desarrollos/.config/opencode/opencode.json")),
+        root: resolve(root, &[".config", "agent-rules"])?,
+        claude_settings: resolve(claude_settings, &[".claude", "settings.json"])?,
+        opencode_config: resolve(opencode_config, &[".config", "opencode", "opencode.json"])?,
         quiet,
     })
 }

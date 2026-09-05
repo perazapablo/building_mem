@@ -16,6 +16,7 @@
 //   `drain` defaults to true: markers are listed AND deleted, so the warning
 //   is shown exactly once. Pass drain:false to peek without consuming.
 
+const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
@@ -24,7 +25,7 @@ const { initState } = require('./stats.cjs');
 const { hasNarrative } = require('./session-end.cjs');
 
 const DB_PATH = process.env.MCP_MEMORY_DB_PATH
-  || 'C:/Users/Desarrollos/.config/mcp-learning/memory.db';
+  || path.join(os.homedir(), '.config/mcp-learning/memory.db');
 const STATE_DIR = process.env.MCP_HARNESS_STATE_DIR
   || path.join(__dirname, 'state');
 

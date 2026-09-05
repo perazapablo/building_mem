@@ -20,10 +20,12 @@
 // the call through. A false block costs the user a turn; a false pass only
 // costs traceability on one session.
 
+const path = require('node:path');
+const os = require('node:os');
 const { checkFocusForSession } = require('./focus-gate.cjs');
 const { resolveCwd } = require('./mapper.cjs');
 const { isReadOnlyBash } = require(
-  'C:/Users/Desarrollos/.config/agent-rules/skills/action-gating/hooks/claude-pre-tool.cjs'
+  path.join(os.homedir(), '.config/agent-rules/skills/action-gating/hooks/claude-pre-tool.cjs')
 );
 
 // Tool names are normalised by the adapter before reaching here (opencode's

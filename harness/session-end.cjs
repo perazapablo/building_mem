@@ -12,13 +12,14 @@
 // la fila de la sesión existe en la DB con lo que sí se pudo capturar, para
 // que el TIMELINE del viewer nunca tenga huecos por olvidos.
 
+const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { DatabaseSync } = require('node:sqlite');
 
 const DB_PATH = process.env.MCP_MEMORY_DB_PATH
-  || 'C:/Users/Desarrollos/.config/mcp-learning/memory.db';
+  || path.join(os.homedir(), '.config/mcp-learning/memory.db');
 const STATE_DIR = process.env.MCP_HARNESS_STATE_DIR
   || path.join(__dirname, 'state');
 

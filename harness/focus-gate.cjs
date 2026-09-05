@@ -14,11 +14,13 @@
 //     true  = writing tool that must have focus before running
 //     false = read-only, scope-creation, or focus-itself (bypass)
 
+const path = require('node:path');
+const os = require('node:os');
 const { DatabaseSync } = require('node:sqlite');
 const fs = require('node:fs');
 
 const DEFAULT_DB = process.env.MCP_MEMORY_DB_PATH
-  || 'C:/Users/Desarrollos/.config/mcp-learning/memory.db';
+  || path.join(os.homedir(), '.config/mcp-learning/memory.db');
 
 // Tools that DO NOT require focus. Everything else under mcp__memory__* does.
 const ALLOWLIST = new Set([

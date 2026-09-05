@@ -5,7 +5,7 @@
 //! Contract with the hook side (mcp-learning/harness/stats.cjs):
 //!   - State dir: env MCP_HARNESS_STATE_DIR
 //!     default: dirname($MCP_MEMORY_DB_PATH)/harness/state
-//!     fallback: C:/Users/Desarrollos/.config/mcp-learning/harness/state
+//!     fallback: ~/.config/mcp-learning/harness/state
 //!   - One file per session: `<sanitized session_id>.json`
 //!   - Shape written by the hook (see stats.cjs emptyState):
 //!       { session_id, project_id, started_at, last_update_at,
@@ -18,6 +18,8 @@
 //!   - last_focus    = latest session_focus row for project_id (if any)
 
 use std::{env, fs, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
+
+use crate::paths;
 
 use rmcp::{
     handler::server::wrapper::Parameters, model::CallToolResult, schemars, tool, tool_router,
@@ -100,7 +102,11 @@ fn state_dir() -> PathBuf {
             return parent.join("harness").join("state");
         }
     }
-    PathBuf::from("C:/Users/Desarrollos/.config/mcp-learning/harness/state")
+    // Last resort: the install convention. With no resolvable home this falls
+    // back to a relative path, which fails to read visibly instead of pointing
+    // at an absolute path from another machine.
+    paths::under_home(&[".config", "mcp-learning", "harness", "state"])
+        .unwrap_or_else(|| PathBuf::from("harness/state"))
 }
 
 fn sanitize(session_id: &str) -> String {

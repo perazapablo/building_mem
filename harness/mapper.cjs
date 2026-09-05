@@ -14,12 +14,13 @@
 //   { matched: bool, project_id?: string, project_name?: string,
 //     cwd: string, path_key: string, db_path: string, message: string }
 
+const os = require('node:os');
 const { DatabaseSync } = require('node:sqlite');
 const path = require('node:path');
 const fs = require('node:fs');
 
 const DEFAULT_DB = process.env.MCP_MEMORY_DB_PATH
-  || 'C:/Users/Desarrollos/.config/mcp-learning/memory.db';
+  || path.join(os.homedir(), '.config/mcp-learning/memory.db');
 
 function canonicalize(p) {
   return String(p ?? '').trim().replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();

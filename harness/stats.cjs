@@ -3,11 +3,12 @@
 // (default: <this file's dir>/state). Hooks call increment(); the consumer
 // (MCP tool get_session_stats) calls readSnapshot() to enrich and return.
 
+const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { requiresFocus, checkFocus } = require('./focus-gate.cjs');
 const { READ_ONLY_BASH } = require(
-  'C:/Users/Desarrollos/.config/agent-rules/skills/action-gating/hooks/claude-pre-tool.cjs'
+  path.join(os.homedir(), '.config/agent-rules/skills/action-gating/hooks/claude-pre-tool.cjs')
 );
 
 const STATE_DIR = process.env.MCP_HARNESS_STATE_DIR
