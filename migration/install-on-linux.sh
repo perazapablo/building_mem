@@ -8,13 +8,11 @@ WIN_USER_PATH_WIN='C:\\Users\\Desarrollos'
 WIN_USER_PATH_WIN_FS='C:/Users/Desarrollos'
 
 # Auto-memory dir: Claude Code deriva el nombre del CWD.
-# En Windows era C--Users-Desarrollos--config-mcp-learning
-# En Linux será -home-<user>--config-mcp-learning (dashes reemplazan slashes).
+# En Windows: C--Users-Desarrollos--config-mcp-learning
+# En Linux:   -home-<user>--config-mcp-learning (dashes reemplazan slashes).
 LINUX_USER="$(id -un)"
-NEW_AUTOMEM_DIRNAME="-home-${LINUX_USER}--config-mcp-learning"
 
 echo ">> Instalando en \$HOME=$HOME  (usuario: $LINUX_USER)"
-echo ">> Auto-memory se instalará como: ~/.claude/projects/$NEW_AUTOMEM_DIRNAME/memory/"
 read -rp "Continuar? [y/N] " ans
 [[ "$ans" =~ ^[Yy]$ ]] || { echo "Abortado."; exit 1; }
 
@@ -35,12 +33,13 @@ rewrite_paths_inplace() {
   # Forward-slash (Bash/Windows mixto): C:/Users/Desarrollos -> /home/user
   sed -i "s|${WIN_USER_PATH_WIN_FS}|${HOME}|g" "$f" 2>/dev/null || true
   # Git Bash style: /c/Users/Desarrollos -> /home/user
-  sed -i "s|${WIN_USER_PATH_WIN_FS//\//\\/}|${HOME//\//\\/}|g" "$f" 2>/dev/null || true
   sed -i "s|${WIN_USER_PATH_UNIX}|${HOME}|g" "$f" 2>/dev/null || true
   # Backslashes internos que sobrevivan (paths de hooks .cjs): \\ -> /
-  # Solo dentro de líneas que ya mencionan $HOME para no romper otros escapes.
+  # Solo dentro de lineas que ya mencionan $HOME para no romper otros escapes.
   sed -i "\|${HOME}|s|\\\\\\\\|/|g" "$f" 2>/dev/null || true
   sed -i "\|${HOME}|s|\\\\|/|g" "$f" 2>/dev/null || true
+  # Binario Windows -> Linux: cargo build en Linux no produce .exe.
+  sed -i 's|mcp-memory\.exe|mcp-memory|g' "$f" 2>/dev/null || true
 }
 
 rewrite_dir() {
@@ -51,7 +50,8 @@ rewrite_dir() {
     -o -name '*.cjs' -o -name '*.mjs' -o -name '*.js' -o -name '*.ts' \
     -o -name '*.sh' -o -name '*.ps1' -o -name '*.yml' -o -name '*.yaml' \
   \) -print0 | while IFS= read -r -d '' f; do
-    if grep -q -e "$WIN_USER_PATH_WIN_FS" -e "$WIN_USER_PATH_UNIX" -e 'C:\\\\Users\\\\Desarrollos' "$f" 2>/dev/null; then
+    if grep -q -e "$WIN_USER_PATH_WIN_FS" -e "$WIN_USER_PATH_UNIX" \
+               -e 'C:\\\\Users\\\\Desarrollos' -e 'mcp-memory\.exe' "$f" 2>/dev/null; then
       rewrite_paths_inplace "$f"
     fi
   done
@@ -75,48 +75,83 @@ install_file() {
   rewrite_paths_inplace "$dst"
 }
 
-echo "[1/6] ~/.config/agent-rules"
+echo "[1/7] ~/.config/agent-rules"
 install_tree "$STAGE/dot-config/agent-rules" "$HOME/.config/agent-rules"
 
-echo "[2/6] ~/.config/opencode"
+echo "[2/7] ~/.config/opencode"
 install_tree "$STAGE/dot-config/opencode" "$HOME/.config/opencode"
 install_file "$STAGE/dot-config/AGENTS.md" "$HOME/.config/AGENTS.md"
 
-echo "[3/6] ~/.config/mcp-learning (repo + memory.db)"
+echo "[3/7] ~/.config/mcp-learning (repo + memory.db)"
 install_tree "$STAGE/mcp-repo" "$HOME/.config/mcp-learning"
 
-echo "[4/6] ~/.claude (settings, CLAUDE.md, skills)"
+echo "[4/7] ~/.claude (settings, CLAUDE.md, skills, agents)"
 install_file "$STAGE/dot-claude/settings.json" "$HOME/.claude/settings.json"
 install_file "$STAGE/dot-claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
 install_tree "$STAGE/dot-claude/skills" "$HOME/.claude/skills"
+install_tree "$STAGE/dot-claude/agents" "$HOME/.claude/agents"
 
-echo "[5/6] auto-memory -> ~/.claude/projects/$NEW_AUTOMEM_DIRNAME/memory/"
-install_tree "$STAGE/auto-memory" "$HOME/.claude/projects/$NEW_AUTOMEM_DIRNAME/memory"
+echo "[5/7] merge de ~/.claude.json (mcpServers + config de proyectos)"
+# NO se sobrescribe: el .claude.json del destino tiene su propio estado de
+# auth/onboarding. Solo se mergean mcpServers y la config por proyecto,
+# con las rutas Windows traducidas a $HOME.
+PORTABLE="$STAGE/dot-claude/claude.json.portable"
+if [ -f "$PORTABLE" ] && command -v node >/dev/null 2>&1; then
+  [ -f "$HOME/.claude.json" ] && cp "$HOME/.claude.json" "$HOME/.claude.json.premerge"
+  node "$STAGE/merge-claude-json.cjs" "$PORTABLE" "$HOME/.claude.json"
+else
+  echo "   (skip: falta claude.json.portable o node)"
+fi
 
-echo "[6/6] ~/.codex"
+echo "[6/7] auto-memory -> ~/.claude/projects/*/memory/"
+# Traduccion del nombre de directorio: Claude Code lo deriva del CWD
+# reemplazando separadores por guiones. C--Users-Desarrollos-X -> -home-<user>-X
+if [ -d "$STAGE/auto-memory" ]; then
+  for src in "$STAGE"/auto-memory/*; do
+    [ -d "$src" ] || continue
+    win_name="$(basename "$src")"
+    case "$win_name" in
+      C--Users-Desarrollos*)
+        linux_name="-home-${LINUX_USER}${win_name#C--Users-Desarrollos}"
+        ;;
+      *)
+        # Path fuera del home de Windows (otro usuario/disco): sin equivalente
+        # automatico. Se preserva con el nombre original.
+        linux_name="$win_name"
+        echo "   (sin equivalente Linux, se preserva tal cual: $win_name)"
+        ;;
+    esac
+    echo "   $win_name -> $linux_name"
+    install_tree "$src" "$HOME/.claude/projects/$linux_name/memory"
+  done
+fi
+
+echo "[7/7] ~/.codex"
 install_file "$STAGE/dot-codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
 install_file "$STAGE/dot-codex/config.toml" "$HOME/.codex/config.toml"
 
 echo ""
-echo "== Instalación base OK =="
+echo "== Instalacion base OK =="
 echo ""
 echo "Pasos manuales pendientes:"
 echo ""
 echo "1) Build del MCP Rust:"
 echo "     cd ~/.config/mcp-learning/rust && cargo build --release"
+echo "   Verifica que produce: rust/target/release/mcp-memory (sin .exe)"
 echo ""
 echo "2) Build del viewer Tauri (regenera iconos Linux):"
 echo "     cd ~/.config/mcp-learning/viewer && npm install && npm run tauri build"
 echo ""
-echo "3) Verificar settings.json de Claude — la ruta al binario del MCP en"
-echo "   ~/.claude/settings.json debe apuntar a:"
-echo "     ~/.config/mcp-learning/rust/target/release/mcp-memory"
+echo "3) Login de Claude Code (las credenciales NO se migran):"
+echo "     claude   # y segui el flujo de auth"
 echo ""
-echo "4) Verificar hooks .cjs en agent-rules/skills/*/hooks/ — los shebangs"
-echo "   y rutas de node deben ser válidos en Linux (node ya en PATH)."
+echo "4) Verificar rutas del MCP:"
+echo "     grep -n 'mcp-memory' ~/.claude/settings.json ~/.claude.json"
 echo ""
-echo "5) Probar Claude Code y opencode desde ~/.config/mcp-learning para"
-echo "   confirmar que el project_id se resuelve OK (verifica que la BD"
-echo "   memory.db se abre y list_projects devuelve el proyecto mcp_memory)."
+echo "5) Verificar que no quedaron rutas Windows:"
+echo "     grep -rn 'C:' ~/.claude/settings.json ~/.config/agent-rules/ || echo limpio"
 echo ""
-echo "6) Revisar backups .bak.* si algo quedó raro y necesitás rollback."
+echo "6) Probar desde ~/.config/mcp-learning que list_projects abre la BD."
+echo ""
+echo "7) Rollback: los archivos previos quedaron como <archivo>.bak.<epoch>"
+echo "   y ~/.claude.json.premerge para el merge de claude.json."
