@@ -90,12 +90,14 @@ pub fn update_checkpoint(
     })
 }
 
+/// El título es el `goal` entero. Recortarlo acá perdía el texto para siempre:
+/// la fila quedaba con 80 caracteres y la única copia completa enterrada en el
+/// JSON del summary, así que todo lector heredaba el corte.
 fn derive_title(id: &str, summary: Option<&SessionSummary>) -> String {
     if let Some(s) = summary {
         let goal = s.goal.trim();
         if !goal.is_empty() {
-            let take: String = goal.chars().take(80).collect();
-            return take;
+            return goal.to_string();
         }
     }
     let short = id.get(..8).unwrap_or(id);
@@ -291,6 +293,22 @@ mod tests {
         assert_eq!(got.title, "Ship the checkpoint upsert fix");
         assert_eq!(got.project_id.as_deref(), Some(p.id.as_str()));
         assert_eq!(got.summary.unwrap().goal, "Ship the checkpoint upsert fix");
+    }
+
+    /// Un goal largo se guarda entero. Antes se cortaba a 80 caracteres al
+    /// escribir, así que el texto se perdía y todo lector heredaba el corte.
+    #[test]
+    fn checkpoint_keeps_long_goal_whole_in_title() {
+        let db = fresh();
+        let p = projects::upsert_force(&db, "p1", "", "development", &[]).unwrap();
+        let sid = "harness-sid-long-goal";
+        let goal = "Registrar el webhook de Openpay contra el backend desplegado en Railway \
+                    y determinar por qué el complemento de pago nunca se emitió";
+        assert!(goal.chars().count() > 80, "el goal de prueba debe pasar el viejo corte");
+        let s = SessionSummary { goal: goal.into(), ..Default::default() };
+        update_checkpoint(&db, sid, &p.id, Some(&s)).unwrap();
+        let got = get(&db, sid).unwrap().expect("session row must exist after checkpoint");
+        assert_eq!(got.title, goal);
     }
 
     #[test]
