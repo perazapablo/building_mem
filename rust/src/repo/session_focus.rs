@@ -5,7 +5,7 @@ use anyhow::Result;
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
-use super::Db;
+use super::{new_uuid, Db};
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct SessionFocus {
@@ -22,6 +22,61 @@ pub struct SessionFocus {
     /// lo mismo que uno declarado al leer el historial: guardar cuál es cuál
     /// mantiene esa diferencia visible en vez de fingir que no existe.
     pub provisional: bool,
+}
+
+/// Una entrada del recorrido de una sesión. A diferencia de `SessionFocus`,
+/// que es la fila actual, esto es lo que se declaró en un momento dado y ya
+/// no cambia.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct FocusEntry {
+    pub id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub focus: String,
+    pub provisional: bool,
+    pub set_at: String,
+}
+
+/// Deja constancia de un focus en el log append-only. Es lo que convierte al
+/// focus en una traza: la fila de `session_focus` se pisa, esto no.
+pub(crate) fn log_entry(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    project_id: &str,
+    focus: &str,
+    provisional: bool,
+) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO session_focus_log (id, session_id, project_id, focus, provisional)
+         VALUES (?, ?, ?, ?, ?)",
+        params![new_uuid(), session_id, project_id, focus, provisional as i64],
+    )?;
+    Ok(())
+}
+
+/// El recorrido de una sesión, del primer focus al último.
+pub fn history(db: &Db, session_id: &str) -> Result<Vec<FocusEntry>> {
+    db.with(|conn| {
+        let mut stmt = conn.prepare(
+            "SELECT id, session_id, project_id, focus, provisional, set_at
+             FROM session_focus_log
+             WHERE session_id = ?
+             ORDER BY set_at ASC, rowid ASC",
+        )?;
+        let rows: Vec<FocusEntry> = stmt
+            .query_map(params![session_id], |r| {
+                Ok(FocusEntry {
+                    id: r.get(0)?,
+                    session_id: r.get(1)?,
+                    project_id: r.get(2)?,
+                    focus: r.get(3)?,
+                    provisional: r.get(4)?,
+                    set_at: r.get(5)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    })
 }
 
 pub fn set(db: &Db, session_id: &str, project_id: &str, focus: &str) -> Result<SessionFocus> {
@@ -42,6 +97,10 @@ pub fn set(db: &Db, session_id: &str, project_id: &str, focus: &str) -> Result<S
                updated_at  = datetime('now')",
             params![session_id, project_id, focus],
         )?;
+        // La fila de arriba se pisa; ésta queda. Van juntas o no va ninguna:
+        // un log sin su fila actual, o al revés, deja el gate y la traza
+        // contándose historias distintas.
+        log_entry(conn, session_id, project_id, focus, false)?;
         Ok(())
     })?;
     get(db, session_id)?.ok_or_else(|| anyhow::anyhow!("row disappeared after upsert"))
@@ -126,6 +185,33 @@ mod tests {
         set(&db, "s1", "p1", "second").unwrap();
         let f = get(&db, "s1").unwrap().unwrap();
         assert_eq!(f.focus, "second");
+    }
+
+    /// La fila actual se pisa, el recorrido no: es la razón de ser del log.
+    #[test]
+    fn history_keeps_every_focus_the_session_declared() {
+        let db = fresh();
+        set(&db, "s1", "p1", "primero").unwrap();
+        set(&db, "s1", "p1", "segundo").unwrap();
+        set(&db, "s1", "p1", "tercero").unwrap();
+        let h = history(&db, "s1").unwrap();
+        assert_eq!(h.len(), 3);
+        assert_eq!(h[0].focus, "primero");
+        assert_eq!(h[2].focus, "tercero");
+        assert_eq!(get(&db, "s1").unwrap().unwrap().focus, "tercero");
+    }
+
+    /// Una sesión que toca dos proyectos: la fila actual sólo recuerda el
+    /// último, el recorrido recuerda los dos y de quién fue cada uno.
+    #[test]
+    fn history_records_the_project_of_each_focus() {
+        let db = fresh();
+        set(&db, "s1", "p1", "trabajo en el crate").unwrap();
+        set(&db, "s1", "p2", "trabajo en el viewer").unwrap();
+        let h = history(&db, "s1").unwrap();
+        assert_eq!(h.len(), 2);
+        assert_eq!(h[0].project_id, "p1");
+        assert_eq!(h[1].project_id, "p2");
     }
 
     #[test]

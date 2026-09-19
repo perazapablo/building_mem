@@ -18,6 +18,7 @@ const path = require('node:path');
 const os = require('node:os');
 const { DatabaseSync } = require('node:sqlite');
 const fs = require('node:fs');
+const { randomUUID } = require('node:crypto');
 
 const DEFAULT_DB = process.env.MCP_MEMORY_DB_PATH
   || path.join(os.homedir(), '.config/mcp-learning/memory.db');
@@ -185,6 +186,22 @@ function setProvisionalFocus(session_id, project_id, focus, dbPath = DEFAULT_DB)
     // hay que estar dispuesto a esperar el lock en vez de fallar de una.
     db.exec('PRAGMA busy_timeout = 3000');
 
+    // Gemelo de `log_entry` en rust/src/repo/session_focus.rs: la fila de
+    // session_focus se pisa, el log queda. Un provisional que no se registra
+    // deja huecos en el recorrido de la sesión justo en los turnos donde el
+    // agente no declaró nada.
+    const registrar = () => {
+      try {
+        db.prepare(
+          `INSERT INTO session_focus_log (id, session_id, project_id, focus, provisional)
+           VALUES (?, ?, ?, ?, 1)`
+        ).run(randomUUID(), session_id, project_id, texto);
+      } catch {
+        // La tabla puede no existir todavía (base sin migrar): el focus vale
+        // igual, la traza es lo accesorio.
+      }
+    };
+
     if (isAck(texto)) {
       // Un "dale" no describe trabajo: sirve para arrancar un focus, no para
       // reemplazar uno que ya dice algo.
@@ -193,6 +210,7 @@ function setProvisionalFocus(session_id, project_id, focus, dbPath = DEFAULT_DB)
          VALUES (?, ?, ?, 1)
          ON CONFLICT(session_id) DO NOTHING`
       ).run(session_id, project_id, texto);
+      if (r.changes > 0) registrar();
       return { written: r.changes > 0, reason: r.changes > 0 ? 'insertado (ack)' : 'ya había focus' };
     }
 
@@ -205,6 +223,7 @@ function setProvisionalFocus(session_id, project_id, focus, dbPath = DEFAULT_DB)
          updated_at = datetime('now')
        WHERE session_focus.provisional = 1`
     ).run(session_id, project_id, texto);
+    if (r.changes > 0) registrar();
     return {
       written: r.changes > 0,
       reason: r.changes > 0 ? 'upsert provisional' : 'focus declarado intacto',

@@ -172,6 +172,7 @@ const MIGRATION_10_SQL: &str = include_str!("migrations_sql/010_project_paths_an
 const MIGRATION_11_SQL: &str = include_str!("migrations_sql/011_session_focus.sql");
 const MIGRATION_12_SQL: &str = include_str!("migrations_sql/012_decision_records.sql");
 const MIGRATION_13_SQL: &str = include_str!("migrations_sql/013_focus_provisional.sql");
+const MIGRATION_14_SQL: &str = include_str!("migrations_sql/014_session_focus_log.sql");
 
 pub fn all() -> Vec<Migration> {
     vec![
@@ -188,6 +189,7 @@ pub fn all() -> Vec<Migration> {
         Migration { version: 11, name: "session_focus", sql: MIGRATION_11_SQL, post: None },
         Migration { version: 12, name: "decision_records", sql: MIGRATION_12_SQL, post: None },
         Migration { version: 13, name: "focus_provisional", sql: MIGRATION_13_SQL, post: None },
+        Migration { version: 14, name: "session_focus_log", sql: MIGRATION_14_SQL, post: None },
     ]
 }
 
