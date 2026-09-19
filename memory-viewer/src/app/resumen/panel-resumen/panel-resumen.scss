@@ -1,0 +1,228 @@
+:host {
+  display: block;
+}
+
+/* Rampa de una sola tonalidad para el calendario: más oscuro = menos trabajo.
+   Sale del verde del viewer mezclado con el fondo, así que no introduce un
+   color nuevo al sistema. */
+:host {
+  --n0: var(--linea);
+  --n1: color-mix(in srgb, var(--fosforo) 28%, var(--fondo));
+  --n2: color-mix(in srgb, var(--fosforo) 50%, var(--fondo));
+  --n3: color-mix(in srgb, var(--fosforo) 74%, var(--fondo));
+  --n4: var(--fosforo);
+}
+
+.fichas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  margin-bottom: 1.4rem;
+  background: var(--linea);
+  border: 1px solid var(--linea);
+}
+
+.ficha {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 0.8rem;
+  background: var(--panel);
+
+  &.ancha {
+    grid-column: span 2;
+  }
+
+  /* Lo único accionable de la pantalla se marca; el resto es lectura. */
+  &.pendiente .valor {
+    color: var(--alerta);
+  }
+}
+
+.rotulo {
+  color: var(--fosforo-tenue);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.valor {
+  color: var(--texto);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.1;
+
+  &.grande {
+    font-size: 40px;
+    color: var(--fosforo);
+  }
+}
+
+.pie {
+  color: var(--apagado);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.bloque {
+  margin-bottom: 1.4rem;
+
+  h3 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin: 0 0 0.6rem;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--fosforo-tenue);
+  }
+
+  .sub {
+    color: var(--apagado);
+    letter-spacing: 0.08em;
+  }
+
+  &.doble {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.4rem;
+  }
+}
+
+/* ------------------------------------------------------------- calendario */
+
+.calendario {
+  border: 1px solid var(--linea);
+  padding: 0.7rem;
+  overflow-x: auto;
+}
+
+.meses,
+.rejilla {
+  display: flex;
+  gap: 3px;
+  min-width: min-content;
+}
+
+.meses {
+  margin-bottom: 0.25rem;
+}
+
+.mes {
+  width: 11px;
+  color: var(--apagado);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.semana {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dia {
+  width: 11px;
+  height: 11px;
+  background: var(--n0);
+  cursor: default;
+
+  &.n1 { background: var(--n1); }
+  &.n2 { background: var(--n2); }
+  &.n3 { background: var(--n3); }
+  &.n4 { background: var(--n4); }
+
+  /* Un día que todavía no pasó no es un día sin trabajo. */
+  &.futuro {
+    background: none;
+    border: 1px solid var(--n0);
+  }
+
+  &.tocado {
+    outline: 1px solid var(--texto);
+    outline-offset: 1px;
+  }
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin: 0.7rem 0 0;
+  color: var(--apagado);
+  font-size: 11px;
+
+  .texto {
+    color: var(--texto);
+  }
+
+  .escala {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    letter-spacing: 0.08em;
+  }
+
+  i.dia {
+    display: inline-block;
+  }
+}
+
+/* ------------------------------------------------------------ proporciones */
+
+.barra {
+  display: flex;
+  height: 14px;
+  /* El hueco entre tramos lo hace el fondo, no un borde: separar con línea
+     agrega tinta que no es dato. */
+  gap: 2px;
+}
+
+.tramo {
+  background: var(--apagado);
+
+  &.bueno { background: var(--fosforo); }
+  &.medio { background: var(--fosforo-tenue); }
+  &.aviso { background: var(--alerta); }
+}
+
+.claves {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.12rem 0;
+    color: var(--texto);
+    font-size: 11px;
+  }
+
+  b {
+    color: var(--texto);
+    font-weight: 600;
+  }
+
+  .pct {
+    margin-left: auto;
+    color: var(--apagado);
+  }
+}
+
+.punto {
+  width: 8px;
+  height: 8px;
+  background: var(--apagado);
+
+  &.bueno { background: var(--fosforo); }
+  &.medio { background: var(--fosforo-tenue); }
+  &.aviso { background: var(--alerta); }
+}

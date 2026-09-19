@@ -1,0 +1,38 @@
+:host {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--linea);
+  background: var(--panel);
+
+  > * {
+    padding: 0.6rem 1rem;
+    border-right: 1px solid var(--linea);
+    white-space: nowrap;
+    letter-spacing: 0.12em;
+  }
+}
+
+.marca {
+  color: var(--fosforo);
+
+  b {
+    display: inline-block;
+    margin-right: 0.6rem;
+    padding: 0 0.4rem;
+    background: var(--fosforo);
+    color: var(--fondo);
+  }
+}
+
+.ruta {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--apagado);
+  letter-spacing: 0;
+}
+
+.senal {
+  border-right: 0;
+  color: var(--fosforo-tenue);
+}

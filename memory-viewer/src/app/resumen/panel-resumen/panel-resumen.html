@@ -1,0 +1,133 @@
+@if (cargando()) {
+  <p class="vacio">CARGANDO…</p>
+} @else if (!datos() || !datos()!.sesiones) {
+  <p class="vacio">ESTE PROYECTO NO TIENE SESIONES REGISTRADAS</p>
+} @else if (datos(); as d) {
+  <div class="fichas">
+    <div class="ficha ancha">
+      <span class="rotulo">Sesiones</span>
+      <span class="valor grande">{{ d.sesiones }}</span>
+      <span class="pie">en {{ d.dias_activos }} días · última {{ desdeUltima() }}</span>
+    </div>
+
+    <div class="ficha">
+      <span class="rotulo">Horas medidas</span>
+      <span class="valor">{{ horas() }}</span>
+      <!-- Reloj de pared, no horas de trabajo: una sesión que quedó abierta el
+           fin de semana suma los tres días. Por eso se dice sobre cuántas. -->
+      <span class="pie">sobre {{ d.sesiones_medidas }} de {{ d.sesiones }} sesiones</span>
+    </div>
+
+    <div class="ficha">
+      <span class="rotulo">Sesión típica</span>
+      <span class="valor">{{ medianaHoras() }}</span>
+      <span class="pie">mediana</span>
+    </div>
+
+    <div class="ficha">
+      <span class="rotulo">Decisiones</span>
+      <span class="valor">{{ d.decisiones }}</span>
+      <span class="pie">vigentes</span>
+    </div>
+
+    <div class="ficha">
+      <span class="rotulo">Notas</span>
+      <span class="valor">{{ d.notas }}</span>
+      <span class="pie">{{ d.artefactos }} artefactos · {{ d.entidades_codigo }} de código</span>
+    </div>
+
+    <div class="ficha">
+      <span class="rotulo">Commits</span>
+      <span class="valor">{{ d.commits }}</span>
+      <span class="pie">{{ d.archivos_editados }} archivos editados</span>
+    </div>
+
+    <div class="ficha" [class.pendiente]="d.hilos_abiertos > 0">
+      <span class="rotulo">Trabajo abierto</span>
+      <span class="valor">{{ d.hilos_abiertos }}</span>
+      <span class="pie">hilos sin cerrar</span>
+    </div>
+  </div>
+
+  @if (semanas().length) {
+    <section class="bloque">
+      <h3>
+        Cuándo se trabajó
+        <span class="sub">{{ rango() }}</span>
+      </h3>
+
+      <div class="calendario" (pointerleave)="soltar()">
+        <div class="meses">
+          @for (m of meses(); track $index) {
+            <span class="mes">{{ m }}</span>
+          }
+        </div>
+        <div class="rejilla">
+          @for (semana of semanas(); track $index) {
+            <div class="semana">
+              @for (c of semana; track c.fecha) {
+                <span
+                  class="dia"
+                  [class]="'dia n' + c.nivel"
+                  [class.futuro]="c.futuro"
+                  [class.tocado]="diaTocado()?.fecha === c.fecha"
+                  (pointerenter)="tocar(c)"
+                ></span>
+              }
+            </div>
+          }
+        </div>
+
+        <p class="leyenda">
+          <span class="texto">{{ detalleDia() || 'pasá el mouse por un día' }}</span>
+          <span class="escala">
+            menos
+            <i class="dia n0"></i><i class="dia n1"></i><i class="dia n2"></i>
+            <i class="dia n3"></i><i class="dia n4"></i>
+            más
+          </span>
+        </p>
+      </div>
+    </section>
+  }
+
+  <section class="bloque doble">
+    @if (cierre().length) {
+      <div class="barra-bloque">
+        <h3>Cómo cerraron las sesiones</h3>
+        <div class="barra">
+          @for (t of cierre(); track t.nombre) {
+            <span class="tramo" [class]="'tramo ' + t.clase" [style.flex-grow]="t.cantidad"></span>
+          }
+        </div>
+        <ul class="claves">
+          @for (t of cierre(); track t.nombre) {
+            <li>
+              <i [class]="'punto ' + t.clase"></i>
+              {{ t.nombre }} <b>{{ t.cantidad }}</b> <span class="pct">{{ t.porcentaje }}%</span>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
+    @if (origen().length) {
+      <div class="barra-bloque">
+        <h3>De dónde salieron las decisiones</h3>
+        <div class="barra">
+          @for (t of origen(); track t.nombre) {
+            <span class="tramo" [class]="'tramo ' + t.clase" [style.flex-grow]="t.cantidad"></span>
+          }
+        </div>
+        <ul class="claves">
+          @for (t of origen(); track t.nombre) {
+            <li>
+              <i [class]="'punto ' + t.clase"></i>
+              {{ t.nombre }} <b>{{ t.cantidad }}</b> <span class="pct">{{ t.porcentaje }}%</span>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+  </section>
+}

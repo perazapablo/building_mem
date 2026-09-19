@@ -1,0 +1,55 @@
+@if (cargando()) {
+  <p class="vacio">CARGANDO…</p>
+} @else {
+  <div class="controles">
+    <input
+      type="search"
+      class="buscar"
+      placeholder="buscar en el texto…"
+      [value]="busqueda()"
+      (input)="busqueda.set($any($event.target).value)"
+    />
+
+    @if (obsoletas()) {
+      <button
+        type="button"
+        class="filtro"
+        [class.apagado]="!verObsoletas()"
+        (click)="verObsoletas.set(!verObsoletas())"
+      >
+        obsoletas <b>{{ obsoletas() }}</b>
+      </button>
+    }
+
+    <span class="cuenta">{{ visibles().length }} de {{ notas().length }}</span>
+
+    @if (tag() || busqueda()) {
+      <button type="button" class="limpiar" (click)="limpiar()">quitar filtros</button>
+    }
+  </div>
+
+  @if (tags().length) {
+    <p class="tags">
+      @for (t of tags(); track t.nombre) {
+        <button type="button" [class.elegido]="tag() === t.nombre" (click)="elegirTag(t.nombre)">
+          {{ t.nombre }} <b>{{ t.cantidad }}</b>
+        </button>
+      }
+    </p>
+  }
+
+  <ol class="registro">
+    @for (n of visibles(); track n.id) {
+      <li>
+        <mv-nota-fila
+          [nota]="n"
+          [desplegada]="abiertaId() === n.id"
+          (alternar)="alternar.emit($event)"
+          (filtrarTag)="elegirTag($event)"
+        />
+      </li>
+    } @empty {
+      <li class="vacio">NINGUNA NOTA COINCIDE</li>
+    }
+  </ol>
+}

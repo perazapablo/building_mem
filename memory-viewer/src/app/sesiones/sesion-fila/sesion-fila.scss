@@ -1,0 +1,229 @@
+:host {
+  display: block;
+  border-bottom: 1px solid var(--linea);
+  border-left: 2px solid transparent;
+}
+
+:host(.desplegada) {
+  border-left-color: var(--fosforo);
+  background: var(--seleccion);
+}
+
+/* WebKit no encoge el contenido de un <button> por debajo de su ancho
+   intrínseco, así que la grilla va adentro y el botón queda como caja plana. */
+.cabezal {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--realce);
+  }
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: 1.2rem 8.5rem 4rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem;
+}
+
+.marcador,
+.fecha {
+  color: var(--fosforo-tenue);
+  line-height: 1.45;
+}
+
+.fecha {
+  text-transform: uppercase;
+}
+
+.hora {
+  color: var(--apagado);
+  line-height: 1.45;
+}
+
+/* El título se lee entero: recortarlo obliga a abrir la fila para saber qué dice. */
+.titulo {
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+:host(.desplegada) .titulo {
+  color: var(--fosforo);
+}
+
+.detalle {
+  padding: 0.25rem 1rem 1rem 3rem;
+}
+
+.campo {
+  margin: 0 0 0.85rem;
+  line-height: 1.55;
+
+  ul {
+    margin: 0.35rem 0 0;
+    padding-left: 1.1rem;
+  }
+
+  li {
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* El recorrido de la sesión: un renglón por cada vez que se declaró en qué se
+   estaba trabajando. Es lo más parecido a un diario de la sesión. */
+.recorrido {
+  ol {
+    margin: 0.35rem 0 0;
+    padding: 0;
+    list-style: none;
+    border-left: 1px solid var(--linea);
+  }
+
+  li {
+    position: relative;
+    margin: 0;
+    padding: 0.18rem 0 0.18rem 0.9rem;
+    line-height: 1.5;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0.62rem;
+      left: -3px;
+      width: 5px;
+      height: 5px;
+      background: var(--fosforo);
+    }
+
+    /* Un focus derivado del prompt no vale lo mismo que uno declarado por el
+       agente: se muestra, pero apagado. */
+    &.provisional {
+      color: var(--apagado);
+
+      &::before {
+        background: var(--apagado);
+      }
+    }
+  }
+
+  .hora {
+    display: inline-block;
+    min-width: 3.4rem;
+    color: var(--fosforo-tenue);
+  }
+
+  .texto {
+    overflow-wrap: anywhere;
+  }
+}
+
+.etiqueta {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--fosforo-tenue);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.cifras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  margin: 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--linea);
+  color: var(--apagado);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.falla {
+  color: var(--alerta);
+}
+
+/* ------------------------------------------- lo que produjo la sesión */
+
+.producido {
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.22rem 0;
+    border-top: 1px solid var(--linea);
+    line-height: 1.5;
+  }
+
+  .texto {
+    flex: 1;
+    min-width: 12rem;
+    overflow-wrap: anywhere;
+  }
+
+  .tipo {
+    min-width: 5.5rem;
+    color: var(--fosforo-tenue);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .meta {
+    color: var(--apagado);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+
+    &.cerrado {
+      color: var(--fosforo);
+    }
+  }
+}
+
+/* Lo deducido se lee distinto de lo declarado: el borde lo separa y la
+   aclaración dice por qué no es lo mismo. */
+.deducido {
+  padding-left: 0.6rem;
+  border-left: 1px dashed var(--linea);
+}
+
+.ventana {
+  margin-left: 0.5rem;
+  color: var(--apagado);
+  letter-spacing: 0.08em;
+}
+
+.aclaracion {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--apagado);
+  font-size: 10px;
+  line-height: 1.5;
+
+  &.sola {
+    margin: 0 0 0.85rem;
+  }
+}

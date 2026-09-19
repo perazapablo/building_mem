@@ -1,0 +1,209 @@
+@if (cargando()) {
+  <p class="vacio">CARGANDO…</p>
+} @else if (!grafo() || !grafo()!.nodes.length) {
+  <p class="vacio">ESTE PROYECTO NO TIENE NADA GUARDADO</p>
+} @else {
+  <div class="controles">
+    <span class="resumen">
+      <b>{{ resumen().temas }}</b> temas ·
+      <b>{{ resumen().entidades }}</b> cosas
+    </span>
+
+    <button
+      type="button"
+      class="filtro parecidos"
+      [class.apagado]="!verParecidos()"
+      (click)="alternarParecidos()"
+    >
+      texto parecido
+    </button>
+    <button
+      type="button"
+      class="filtro declaradas"
+      [class.apagado]="!verDeclaradas()"
+      (click)="alternarDeclaradas()"
+    >
+      vínculos declarados
+    </button>
+
+    <span class="buscador">
+      <input
+        type="search"
+        placeholder="buscar un tema o una cosa…"
+        [value]="busqueda()"
+        (input)="busqueda.set($any($event.target).value)"
+      />
+      @if (resultados().length) {
+        <ul class="sugerencias">
+          @for (r of resultados(); track r.id) {
+            <li (click)="irA(r.id)">
+              <span class="etiqueta">{{ r.label }}</span>
+              <span class="meta">{{ r.tipo }} · {{ r.grado }} conexiones</span>
+            </li>
+          }
+        </ul>
+      }
+    </span>
+
+    <button type="button" class="accion" (click)="encuadrarTodo()">ver todo</button>
+  </div>
+
+  <div class="marco">
+    <svg
+      #lienzo
+      class="lienzo"
+      [class.con-rotulos]="verRotulos()"
+      (pointerdown)="alPresionarFondo($event)"
+      (pointermove)="alMover($event)"
+      (pointerup)="alSoltar()"
+      (pointerleave)="alSoltar()"
+      (wheel)="alRodar($event)"
+    >
+      <defs>
+        <marker
+          id="punta"
+          viewBox="0 0 8 8"
+          refX="7"
+          refY="4"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto"
+        >
+          <path d="M0,0 L8,4 L0,8 z" class="punta" />
+        </marker>
+      </defs>
+
+      <g
+        [attr.transform]="
+          'translate(' + desplazamiento().x + ',' + desplazamiento().y + ') scale(' + zoom() + ')'
+        "
+      >
+        <g class="vinculos">
+          @for (e of aristas(); track e.id) {
+            <g
+              class="vinculo"
+              [attr.data-id]="e.id"
+              [class.de-tema]="e.esTema"
+              [class.descartada]="e.estado === 'rejected'"
+            >
+              <line [attr.marker-end]="e.esTema ? null : 'url(#punta)'" />
+              @if (!e.esTema) {
+                <text class="rotulo">{{ e.etiqueta }}</text>
+              }
+            </g>
+          }
+        </g>
+
+        <g class="cajas">
+          @for (n of nodos(); track n.id) {
+            <g
+              class="caja"
+              [attr.data-id]="n.id"
+              [class]="'caja tipo-' + n.kind"
+              [class.tema]="n.esTema"
+              (pointerdown)="alPresionarNodo($event, n.id)"
+              (click)="elegir(n.id)"
+            >
+              <rect
+                [attr.x]="-cajaAncho / 2"
+                [attr.y]="-cajaAlto / 2"
+                [attr.width]="cajaAncho"
+                [attr.height]="cajaAlto"
+                rx="2"
+              />
+              <text class="tipo" [attr.x]="-cajaAncho / 2 + 7" [attr.y]="-cajaAlto / 2 + 12">
+                {{ n.tipo }}
+              </text>
+              @for (l of n.lineas; track $index) {
+                <text
+                  class="nombre"
+                  [attr.x]="-cajaAncho / 2 + 7"
+                  [attr.y]="-cajaAlto / 2 + 26 + $index * 11"
+                >
+                  {{ l }}
+                </text>
+              }
+              <text class="grado" [attr.x]="cajaAncho / 2 - 7" [attr.y]="-cajaAlto / 2 + 12">
+                {{ n.grado }}
+              </text>
+            </g>
+          }
+        </g>
+      </g>
+    </svg>
+
+    @if (detalle(); as d) {
+      <aside class="detalle">
+        <button type="button" class="cerrar" (click)="cerrarDetalle()">×</button>
+        <p class="tipo">
+          {{ d.tipo }}
+          @if (d.fecha) {
+            <span class="fecha">{{ d.fecha }} · {{ d.antiguedad }}</span>
+          }
+        </p>
+        <h3>{{ d.etiqueta }}</h3>
+        @if (d.clave) {
+          <p class="clave">{{ d.clave }}</p>
+        }
+
+        @if (d.texto) {
+          <p class="contenido">{{ d.texto }}</p>
+        }
+        @if (d.tags.length) {
+          <p class="tags">
+            @for (t of d.tags; track t) {
+              <span>{{ t }}</span>
+            }
+          </p>
+        }
+
+        <p class="cuantas">
+          {{ d.esTema ? 'agrupa estas cosas' : d.conexiones.length + ' conexiones' }}
+          @if (d.arco) {
+            <span class="arco">{{ d.arco }}</span>
+          }
+        </p>
+
+        <ul>
+          @for (c of d.conexiones; track c.id) {
+            <li [class.de-tema]="c.esTema">
+              @if (!c.esTema) {
+                <p class="cabeza">
+                  <span class="relacion">{{ c.etiqueta }}</span>
+                  <span class="estado" [class.confirmada]="c.estado === 'accepted'">
+                    {{
+                      c.estado === 'accepted'
+                        ? 'confirmada'
+                        : c.estado === 'rejected'
+                          ? 'descartada'
+                          : 'sin revisar'
+                    }}
+                  </span>
+                  <span class="confianza">{{ c.confianza }}%</span>
+                </p>
+              }
+              <button type="button" class="otro" (click)="irA(c.otroId)">
+                {{ c.otroLabel }}
+                <span class="tipo-otro">{{ c.otroTipo }}</span>
+              </button>
+              @if (c.otraFecha) {
+                <p class="cuando">
+                  {{ c.otraFecha }}
+                  @if (c.salto) {
+                    <span class="salto">{{ c.salto }}</span>
+                  }
+                </p>
+              }
+              @if (c.otroTexto) {
+                <p class="extracto">{{ c.otroTexto }}</p>
+              }
+              @if (!c.esTema) {
+                <p class="porque">{{ c.porque }}</p>
+              }
+            </li>
+          }
+        </ul>
+      </aside>
+    }
+  </div>
+}

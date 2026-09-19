@@ -1,0 +1,56 @@
+<mv-barra-superior [rutaBase]="rutaBase()" [totalProyectos]="proyectos().length" />
+
+<div class="tablero">
+  <section class="panel izquierda">
+    <mv-lista-proyectos
+      [proyectos]="proyectos()"
+      [seleccionadoId]="seleccionado()?.id ?? null"
+      (seleccionar)="abrirProyecto($event)"
+    />
+  </section>
+
+  <section class="panel">
+    @if (seleccionado(); as p) {
+      <h2 class="titulo-panel"><i>B</i> {{ p.name }}</h2>
+
+      <mv-solapas [solapas]="solapas()" [activa]="vista()" (cambiar)="cambiarVista($event)" />
+
+      @if (error(); as e) {
+        <p class="error">{{ e }}</p>
+      }
+
+      @switch (vista()) {
+        @case ('resumen') {
+          <mv-panel-resumen [datos]="resumen()" [cargando]="cargando()" />
+        }
+        @case ('proyecto') {
+          <mv-panel-proyecto
+            [paths]="paths()"
+            [hilos]="hilos()"
+            [notas]="notas()"
+            [decisiones]="decisiones()"
+            [artefactos]="artefactos()"
+            [cargando]="cargando()"
+            [abiertas]="abiertas()"
+            (alternar)="alternarSeccion($event)"
+            (abrirHilo)="abrirHilo($event)"
+            (cerrarHilo)="cerrarHilo($event)"
+          />
+        }
+        @case ('sesiones') {
+          <mv-panel-sesiones
+            [sesiones]="sesiones()"
+            [cargando]="cargando()"
+            [abiertaId]="abiertaEn('sesiones')"
+            [detalles]="detallesSesion()"
+            [bundles]="bundles()"
+            (alternar)="alternarFila('sesiones', $event)"
+          />
+        }
+        @case ('grafo') {
+          <mv-panel-grafo [grafo]="grafo()" [cargando]="cargando()" />
+        }
+      }
+    }
+  </section>
+</div>

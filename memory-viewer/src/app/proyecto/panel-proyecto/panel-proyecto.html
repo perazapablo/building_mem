@@ -1,0 +1,132 @@
+@if (cargando()) {
+  <p class="vacio">CARGANDO…</p>
+} @else {
+  <section class="bloque">
+    <h3>Dónde vive</h3>
+    @if (paths().length) {
+      <ul class="rutas">
+        @for (p of paths(); track p.id) {
+          <li [class.ajena]="!p.path.startsWith('/')">{{ p.path }}</li>
+        }
+      </ul>
+    } @else {
+      <p class="nada">Sin rutas registradas: este proyecto no se resuelve solo desde el disco.</p>
+    }
+  </section>
+
+  <section class="bloque">
+    <h3>
+      Trabajo abierto
+      <span class="cuenta">{{ abiertos().length }}</span>
+    </h3>
+
+    <form class="nuevo" (submit)="crear(); $event.preventDefault()">
+      <input
+        type="text"
+        placeholder="anotar algo que queda pendiente…"
+        [value]="nuevo()"
+        (input)="nuevo.set($any($event.target).value)"
+      />
+      <button type="submit" [disabled]="!nuevo().trim()">abrir</button>
+    </form>
+
+    @if (abiertos().length) {
+      <ul class="hilos">
+        @for (h of abiertos(); track h.id) {
+          <li>
+            <p class="texto">{{ h.thread }}</p>
+            <p class="meta">
+              <span class="estado abierto">abierto</span>
+              <span>{{ h.created_at | dia }}</span>
+              <span>{{ deQuien(h.opened_in) }}</span>
+              @if (h.updated_at !== h.created_at) {
+                <span>· movido {{ h.updated_at | dia }}</span>
+              }
+            </p>
+
+            @if (cerrandoId() === h.id) {
+              <!-- La razón de cierre es lo único que explica por qué algo dejó
+                   de estar pendiente: se pide al cerrar, no después. -->
+              <form class="cierre" (submit)="confirmarCierre(); $event.preventDefault()">
+                <span class="como">
+                  cerrar como <b>{{ comoTermino(estadoCierre()) }}</b>
+                </span>
+                <input
+                  type="text"
+                  placeholder="por qué se cierra (opcional)"
+                  [value]="razon()"
+                  (input)="razon.set($any($event.target).value)"
+                />
+                <button type="submit" class="confirmar">confirmar</button>
+                <button type="button" (click)="cancelarCierre()">cancelar</button>
+              </form>
+            } @else {
+              <p class="acciones">
+                <button type="button" (click)="empezarCierre(h.id, 'done')">terminado</button>
+                <button type="button" (click)="empezarCierre(h.id, 'dropped')">descartar</button>
+              </p>
+            }
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="nada">Nada pendiente.</p>
+    }
+
+    @if (cerrados().length) {
+      <button type="button" class="mas" (click)="verCerrados.set(!verCerrados())">
+        {{ verCerrados() ? 'ocultar' : 'ver' }} {{ cerrados().length }} cerrados
+      </button>
+      @if (verCerrados()) {
+        <ul class="hilos cerrados">
+          @for (h of cerrados(); track h.id) {
+            <li>
+              <p class="texto">{{ h.thread }}</p>
+              <p class="meta">
+                <span class="estado" [class.descartado]="h.status === 'dropped'">
+                  {{ comoTermino(h.status) }}
+                </span>
+                <span>{{ h.closed_at | dia }}</span>
+                <span>{{ deQuien(h.closed_in) }}</span>
+                <span class="desde">· abierto {{ h.created_at | dia }}</span>
+              </p>
+              @if (h.close_reason) {
+                <p class="razon">{{ h.close_reason }}</p>
+              } @else {
+                <p class="razon sin">nadie registró por qué</p>
+              }
+            </li>
+          }
+        </ul>
+      }
+    }
+  </section>
+
+  <section class="bloque conocimiento">
+    <mv-solapas [solapas]="subsolapas()" [activa]="seccion()" (cambiar)="seccion.set($event)" />
+
+    @switch (seccion()) {
+      @case ('notas') {
+        <mv-panel-notas
+          [notas]="notas()"
+          [abiertaId]="abiertaEn('notas')"
+          (alternar)="alternar.emit({ seccion: 'notas', id: $event })"
+        />
+      }
+      @case ('decisiones') {
+        <mv-panel-decisiones
+          [decisiones]="decisiones()"
+          [abiertaId]="abiertaEn('decisiones')"
+          (alternar)="alternar.emit({ seccion: 'decisiones', id: $event })"
+        />
+      }
+      @case ('artefactos') {
+        <mv-panel-artefactos
+          [artefactos]="artefactos()"
+          [abiertaId]="abiertaEn('artefactos')"
+          (alternar)="alternar.emit({ seccion: 'artefactos', id: $event })"
+        />
+      }
+    }
+  </section>
+}

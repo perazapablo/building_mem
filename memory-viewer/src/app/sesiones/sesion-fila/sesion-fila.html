@@ -1,0 +1,151 @@
+<button type="button" class="cabezal" (click)="alternar.emit(sesion().id)">
+  <span class="grilla">
+    <span class="marcador">{{ desplegada() ? '▾' : '▸' }}</span>
+    <span class="fecha">{{ sesion().created_at | dia }}</span>
+    <span class="hora">{{ sesion().created_at | hora }}</span>
+    <span class="titulo">{{ sesion().title }}</span>
+  </span>
+</button>
+
+@if (desplegada()) {
+  <div class="detalle">
+    @if (bundle(); as b) {
+      @if (b.focus.length) {
+        <div class="campo recorrido">
+          <span class="etiqueta">En qué se fue trabajando</span>
+          <ol>
+            @for (f of b.focus; track f.id) {
+              <li [class.provisional]="f.provisional">
+                <span class="hora">{{ f.set_at | hora }}</span>
+                <span class="texto">{{ f.focus }}</span>
+              </li>
+            }
+          </ol>
+        </div>
+      }
+    }
+
+    @if (detalle(); as d) {
+      @if (d?.summary; as r) {
+        @if (r.goal) {
+          <p class="campo"><span class="etiqueta">Objetivo</span>{{ r.goal }}</p>
+        }
+        @if (r.outcome) {
+          <p class="campo"><span class="etiqueta">Resultado</span>{{ r.outcome }}</p>
+        }
+        @if (r.pending.length) {
+          <div class="campo">
+            <span class="etiqueta">Quedó sin terminar</span>
+            <ul>
+              @for (x of r.pending; track x) {
+                <li>{{ x }}</li>
+              }
+            </ul>
+          </div>
+        }
+        @if (r.blockers.length) {
+          <div class="campo">
+            <span class="etiqueta">Trabas</span>
+            <ul>
+              @for (x of r.blockers; track x) {
+                <li>{{ x }}</li>
+              }
+            </ul>
+          </div>
+        }
+        @if (r.notes) {
+          <p class="campo"><span class="etiqueta">Notas</span>{{ r.notes }}</p>
+        }
+      } @else {
+        <p class="vacio">SIN CIERRE REGISTRADO</p>
+      }
+    } @else {
+      <p class="vacio">CARGANDO…</p>
+    }
+
+    @if (bundle(); as b) {
+      @if (b.decisiones.length) {
+        <div class="campo">
+          <span class="etiqueta">Decisiones que se tomaron acá</span>
+          <ul class="producido">
+            @for (d of b.decisiones; track d.id) {
+              <li>
+                <span class="texto">{{ d.statement }}</span>
+                <span class="meta">{{ origenDe(d.origin) }} · {{ d.confidence }}</span>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+
+      @if (b.hilos.length) {
+        <div class="campo">
+          <span class="etiqueta">Trabajo abierto y cerrado acá</span>
+          <ul class="producido">
+            @for (h of b.hilos; track h.id) {
+              <li>
+                <span class="texto">{{ h.thread }}</span>
+                <span class="meta" [class.cerrado]="h.closed_in === sesion().id">
+                  {{ h.closed_in === sesion().id ? 'cerrado en esta sesión' : 'abierto acá' }}
+                  @if (h.status !== 'open' && h.closed_in !== sesion().id) {
+                    · cerrado después
+                  }
+                </span>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+
+      <!-- Notas y artefactos no tienen columna que los ate a una sesión: se
+           deducen por la franja horaria, y eso se dice en pantalla. -->
+      @if (b.notas.length || b.artefactos.length) {
+        <div class="campo deducido">
+          <span class="etiqueta">
+            Guardado mientras corría
+            @if (b.desde) {
+              <span class="ventana">{{ b.desde | hora }} → {{ b.hasta | hora }}</span>
+            }
+          </span>
+          <ul class="producido">
+            @for (n of b.notas; track n.id) {
+              <li>
+                <span class="tipo">nota</span>
+                <span class="texto">{{ resumir(n.content) }}</span>
+              </li>
+            }
+            @for (a of b.artefactos; track a.id) {
+              <li>
+                <span class="tipo">{{ a.type }}</span>
+                <span class="texto">{{ resumir(a.content) }}</span>
+              </li>
+            }
+          </ul>
+          <span class="aclaracion">
+            Deducido por hora, no declarado: una sesión larga o solapada puede
+            llevarse algo de otra.
+          </span>
+        </div>
+      } @else if (bundle() && !bundle()!.ventana_confiable) {
+        <p class="aclaracion sola">
+          Sin duración medida no hay ventana: no se puede saber qué notas o
+          artefactos se guardaron durante esta sesión.
+        </p>
+      }
+    }
+
+    @if (detalle(); as d) {
+      @if (d?.summary?.stats; as st) {
+        <p class="cifras">
+          <span>{{ st.duration_min }} min</span>
+          <span>{{ st.turns }} turnos</span>
+          <span>{{ st.commits.length }} commits</span>
+          <span>{{ st.files_edited.length }} archivos</span>
+          @if (st.tool_errors) {
+            <span class="falla">{{ st.tool_errors }} errores</span>
+          }
+        </p>
+      }
+    }
+  </div>
+}

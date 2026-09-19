@@ -1,0 +1,17 @@
+@if (cargando()) {
+  <p class="vacio">CARGANDO…</p>
+} @else {
+  <ol class="registro">
+    @for (d of decisiones(); track d.id) {
+      <li>
+        <mv-decision-fila
+          [decision]="d"
+          [desplegada]="abiertaId() === d.id"
+          (alternar)="alternar.emit($event)"
+        />
+      </li>
+    } @empty {
+      <li class="vacio">SIN DECISIONES VIGENTES</li>
+    }
+  </ol>
+}

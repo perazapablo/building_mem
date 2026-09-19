@@ -1,0 +1,523 @@
+:host {
+  display: block;
+  height: 100%;
+  min-height: 0;
+
+  /* Un color por tipo de entidad, dentro de la familia del viewer. */
+  --nota: #6ef7a5;
+  --decision: #f2b53d;
+  --codigo: #59d6e8;
+  --artefacto: #b98bf0;
+  --tema: #f0e58b;
+}
+
+.controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.7rem;
+}
+
+.filtro {
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--linea);
+  background: none;
+  color: var(--texto);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+
+  b {
+    margin-left: 0.35rem;
+    color: var(--fosforo);
+  }
+
+  &:hover {
+    border-color: var(--fosforo-tenue);
+  }
+
+  /* Apagado se ve apagado, no desaparecido: hay que poder volver. */
+  &.apagado {
+    color: var(--apagado);
+    opacity: 0.5;
+
+    b {
+      color: var(--apagado);
+    }
+  }
+
+}
+
+.resumen {
+  color: var(--apagado);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+
+  b {
+    color: var(--fosforo);
+  }
+}
+
+.accion {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--fosforo-tenue);
+  background: none;
+  color: var(--fosforo);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--realce);
+  }
+
+  &:last-child {
+    margin-left: auto;
+  }
+}
+
+.buscador {
+  position: relative;
+  flex: 1;
+  min-width: 160px;
+  max-width: 280px;
+
+  input {
+    width: 100%;
+    padding: 0.22rem 0.5rem;
+    border: 1px solid var(--linea);
+    background: var(--fondo);
+    color: var(--texto);
+    font: inherit;
+    font-size: 11px;
+
+    &:focus {
+      outline: none;
+      border-color: var(--fosforo-tenue);
+    }
+  }
+}
+
+.sugerencias {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  border: 1px solid var(--linea);
+  background: var(--panel);
+  list-style: none;
+
+  li {
+    padding: 0.35rem 0.5rem;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--realce);
+    }
+  }
+
+  .etiqueta {
+    display: block;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+
+  .meta {
+    display: block;
+    color: var(--apagado);
+    font-size: 10px;
+  }
+}
+
+.marco {
+  position: relative;
+  height: calc(100% - 2.2rem);
+  min-height: 420px;
+  border: 1px solid var(--linea);
+  background: var(--fondo);
+  overflow: hidden;
+}
+
+.lienzo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+/* ------------------------------------------------------------- vínculos */
+
+.vinculo {
+  line {
+    stroke: var(--fosforo-tenue);
+    stroke-width: 1;
+    opacity: 0.75;
+  }
+
+  .punta,
+  &:hover line {
+    opacity: 1;
+  }
+
+  .rotulo {
+    display: none;
+    fill: var(--apagado);
+    font-family: var(--mono);
+    font-size: 9px;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: var(--fondo);
+    stroke-width: 4px;
+    pointer-events: none;
+  }
+
+  &:hover {
+    line {
+      stroke: var(--fosforo);
+    }
+
+    .rotulo {
+      fill: var(--fosforo);
+    }
+  }
+
+  /* La línea a un tema no lleva flecha ni rótulo: lo que las une está escrito
+     en la tarjeta del tema, no repetido en cada línea. */
+  &.de-tema line {
+    stroke: var(--tema);
+    opacity: 0.35;
+  }
+
+  /* Punteada: una relación descartada sigue siendo información, pero no vale
+     lo mismo que una confirmada y no debe leerse igual. */
+  &.descartada line {
+    stroke: var(--falla);
+    stroke-dasharray: 3 4;
+  }
+}
+
+/* Los rótulos de relación sólo con zoom suficiente: alejado son ruido ilegible. */
+.lienzo.con-rotulos .rotulo {
+  display: block;
+}
+
+.punta {
+  fill: var(--fosforo-tenue);
+}
+
+/* ---------------------------------------------------------------- cajas */
+
+.caja {
+  cursor: pointer;
+
+  rect {
+    fill: var(--panel);
+    stroke: var(--fosforo-tenue);
+    stroke-width: 1;
+  }
+
+  .tipo {
+    fill: var(--fosforo-tenue);
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .nombre {
+    fill: var(--texto);
+    font-family: var(--mono);
+    font-size: 10px;
+  }
+
+  .grado {
+    fill: var(--apagado);
+    font-family: var(--mono);
+    font-size: 8px;
+    text-anchor: end;
+  }
+
+  text {
+    pointer-events: none;
+  }
+
+  &:hover rect {
+    stroke: var(--fosforo);
+    fill: var(--realce);
+  }
+
+  /* La elegida: relleno propio y borde marcado. */
+  &.elegida {
+    rect {
+      fill: var(--seleccion);
+      stroke: var(--fosforo);
+      stroke-width: 2;
+    }
+
+    .nombre {
+      fill: var(--fosforo);
+    }
+  }
+
+  /* El tema es una tarjeta distinta: fondo propio y borde grueso. Es el nodo
+     que explica por qué las de alrededor están juntas. */
+  &.tema {
+    rect {
+      fill: var(--realce);
+      stroke: var(--tema);
+      stroke-width: 2;
+    }
+
+    .nombre {
+      fill: var(--tema);
+      font-size: 12px;
+    }
+
+    .tipo {
+      fill: var(--tema);
+      opacity: 0.75;
+    }
+  }
+
+  &.tipo-decision rect,
+  &.tipo-decision_record rect {
+    stroke: var(--decision);
+  }
+
+  &.tipo-code_entity rect {
+    stroke: var(--codigo);
+  }
+
+  &.tipo-artifact rect {
+    stroke: var(--artefacto);
+  }
+}
+
+/* -------------------------------------------------------------- detalle */
+
+.detalle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 46%);
+  padding: 0.85rem;
+  border-left: 1px solid var(--linea);
+  background: color-mix(in srgb, var(--panel) 96%, transparent);
+  overflow-y: auto;
+
+  .cerrar {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.5rem;
+    padding: 0 0.3rem;
+    border: 0;
+    background: none;
+    color: var(--apagado);
+    font: inherit;
+    font-size: 16px;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--fosforo);
+    }
+  }
+
+  .tipo {
+    margin: 0 0 0.2rem;
+    color: var(--fosforo-tenue);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .fecha {
+    margin-left: 0.5rem;
+    color: var(--apagado);
+    letter-spacing: 0.1em;
+  }
+
+  /* La clave de deduplicación, abajo y en chico: sirve para rastrear, no para
+     entender qué es la tarjeta. */
+  .clave {
+    margin: 0 0 0.45rem;
+    color: var(--apagado);
+    font-size: 10px;
+    overflow-wrap: anywhere;
+  }
+
+  /* El arco del tema: desde cuándo hasta cuándo se estuvo tocando esto. */
+  .arco {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--fosforo-tenue);
+    letter-spacing: 0.06em;
+    text-transform: none;
+  }
+
+  .cuando {
+    margin: 0.15rem 0 0;
+    color: var(--fosforo-tenue);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* El salto en el tiempo es el dato que contesta "¿esto con qué de antes
+     engancha?": va destacado, no al margen. */
+  .salto {
+    margin-left: 0.45rem;
+    padding: 0 0.3rem;
+    background: var(--linea);
+    color: var(--texto);
+  }
+
+  h3 {
+    margin: 0 0 0.4rem;
+    padding-right: 1.2rem;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fosforo);
+    overflow-wrap: anywhere;
+  }
+
+  /* Lo que dice la entidad. Es el dato que faltaba: el nombre en clave
+     (`repo::notes`, `notes-add-idempotency`) no contesta qué es la tarjeta. */
+  .contenido {
+    margin: 0 0 0.5rem;
+    padding: 0.45rem 0.55rem;
+    border-left: 2px solid var(--linea);
+    background: var(--seleccion);
+    color: var(--texto);
+    font-size: 11px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 12rem;
+    overflow-y: auto;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin: 0 0 0.6rem;
+
+    span {
+      padding: 0.05rem 0.35rem;
+      background: var(--linea);
+      color: var(--texto);
+      font-size: 10px;
+    }
+  }
+
+  li.de-tema .otro {
+    color: var(--tema);
+  }
+
+  .extracto {
+    margin: 0.2rem 0 0;
+    color: var(--apagado);
+    font-size: 10px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .cuantas {
+    margin: 0.2rem 0 0.6rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--linea);
+    color: var(--apagado);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    padding: 0.5rem 0;
+    border-top: 1px solid var(--linea);
+  }
+
+  .cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0 0 0.25rem;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .relacion {
+    color: var(--fosforo);
+  }
+
+  .estado {
+    color: var(--decision);
+
+    &.confirmada {
+      color: var(--nota);
+    }
+  }
+
+  .confianza {
+    margin-left: auto;
+    color: var(--apagado);
+  }
+
+  /* La otra punta es un boton: desde el detalle se salta a esa tarjeta. */
+  .otro {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--texto);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+
+    &:hover {
+      color: var(--fosforo);
+      text-decoration: underline;
+    }
+  }
+
+  .tipo-otro {
+    margin-left: 0.4rem;
+    color: var(--apagado);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* El porque en palabras, no la huella del motor que la propuso. */
+  .porque {
+    margin: 0.3rem 0 0;
+    color: var(--apagado);
+    font-size: 11px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+}

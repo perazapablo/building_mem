@@ -1,0 +1,59 @@
+:root {
+  --fondo: #07100b;
+  --panel: #0b1710;
+  --linea: #1d3a29;
+  --realce: #0f2418;
+  --seleccion: #0a1c13;
+  --fosforo: #6ef7a5;
+  --fosforo-tenue: #3d8f63;
+  --texto: #b8f0cf;
+  --apagado: #4f7a63;
+  --alerta: #f2b53d;
+  --falla: #ff6b6b;
+
+  --mono: ui-monospace, "JetBrains Mono", "Cascadia Code", "DejaVu Sans Mono", monospace;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: var(--mono);
+  font-size: 13px;
+  color-scheme: dark;
+}
+
+/* Encabezado de panel: usado por cada sección del tablero. */
+.titulo-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.9rem;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fosforo);
+
+  i {
+    padding: 0 0.35rem;
+    border: 1px solid var(--fosforo-tenue);
+    font-style: normal;
+    font-size: 11px;
+    color: var(--fosforo-tenue);
+  }
+}
+
+.vacio {
+  padding: 1rem 0.25rem;
+  color: var(--apagado);
+  letter-spacing: 0.14em;
+}
+
+.error {
+  padding: 0.6rem;
+  border: 1px solid var(--falla);
+  color: var(--falla);
+}

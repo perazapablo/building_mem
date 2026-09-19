@@ -1,0 +1,54 @@
+@if (cargando()) {
+  <p class="vacio">CARGANDO…</p>
+} @else {
+  <div class="controles">
+    <input
+      type="search"
+      class="buscar"
+      placeholder="buscar en el contenido…"
+      [value]="busqueda()"
+      (input)="busqueda.set($any($event.target).value)"
+    />
+
+    @if (obsoletos()) {
+      <button
+        type="button"
+        class="filtro"
+        [class.apagado]="!verObsoletos()"
+        (click)="verObsoletos.set(!verObsoletos())"
+      >
+        obsoletos <b>{{ obsoletos() }}</b>
+      </button>
+    }
+
+    <span class="cuenta">{{ visibles().length }} de {{ artefactos().length }}</span>
+
+    @if (tipo() || busqueda()) {
+      <button type="button" class="limpiar" (click)="limpiar()">quitar filtros</button>
+    }
+  </div>
+
+  @if (tipos().length > 1) {
+    <p class="tipos">
+      @for (t of tipos(); track t.id) {
+        <button type="button" [class.elegido]="tipo() === t.id" (click)="elegirTipo(t.id)">
+          {{ t.nombre }} <b>{{ t.cantidad }}</b>
+        </button>
+      }
+    </p>
+  }
+
+  <ol class="registro">
+    @for (a of visibles(); track a.id) {
+      <li>
+        <mv-artefacto-fila
+          [artefacto]="a"
+          [desplegada]="abiertaId() === a.id"
+          (alternar)="alternar.emit($event)"
+        />
+      </li>
+    } @empty {
+      <li class="vacio">NINGÚN ARTEFACTO COINCIDE</li>
+    }
+  </ol>
+}

@@ -1,0 +1,46 @@
+<button type="button" class="cabezal" (click)="alternar.emit(nota().id)">
+  <span class="grilla">
+    <span class="marcador">{{ desplegada() ? '▾' : '▸' }}</span>
+    <span class="fecha">{{ nota().created_at | dia }}</span>
+    <span class="resumen">
+      {{ resumen() }}
+      @if (obsoleta()) {
+        <span class="marca obsoleta">obsoleta</span>
+      }
+      @if (revisiones()) {
+        <span class="marca">reescrita {{ revisiones() }}×</span>
+      }
+    </span>
+  </span>
+</button>
+
+@if (desplegada()) {
+  <div class="detalle">
+    <p class="contenido">{{ nota().content }}</p>
+
+    @if (nota().tags.length) {
+      <p class="tags">
+        @for (t of nota().tags; track t) {
+          <button type="button" (click)="filtrarTag.emit(t)">{{ t }}</button>
+        }
+      </p>
+    }
+
+    @if (obsoleta()) {
+      <p class="razon">
+        <span class="etiqueta">Por qué dejó de valer</span>
+        {{ nota().obsolete_reason || 'nadie registró por qué' }}
+      </p>
+    }
+
+    <p class="pie">
+      <span>importancia {{ nota().importance }}</span>
+      @if (nota().topic_key) {
+        <span class="clave">{{ nota().topic_key }}</span>
+      }
+      @if (nota().updated_at) {
+        <span>editada {{ nota().updated_at | dia }}</span>
+      }
+    </p>
+  </div>
+}

@@ -1,0 +1,151 @@
+:host {
+  display: block;
+  border-bottom: 1px solid var(--linea);
+  border-left: 2px solid transparent;
+}
+
+:host(.desplegada) {
+  border-left-color: var(--fosforo);
+  background: var(--seleccion);
+}
+
+.cabezal {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--realce);
+  }
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: 1.2rem 8.5rem 7.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.5rem;
+}
+
+.marcador,
+.fecha {
+  color: var(--fosforo-tenue);
+  line-height: 1.45;
+}
+
+.fecha {
+  text-transform: uppercase;
+}
+
+/* El tipo es la columna que ordena la lectura: un contrato de API y una
+   migración se buscan de formas distintas. */
+.tipo {
+  align-self: start;
+  padding: 0 0.35rem;
+  border: 1px solid var(--fosforo-tenue);
+  color: var(--fosforo-tenue);
+  font-size: 10px;
+  line-height: 1.6;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+
+  &[data-tipo='schema'],
+  &[data-tipo='sql-migration'],
+  &[data-tipo='migration'] {
+    border-color: var(--alerta);
+    color: var(--alerta);
+  }
+
+  &[data-tipo='api'],
+  &[data-tipo='component'] {
+    border-color: var(--codigo, #59d6e8);
+    color: var(--codigo, #59d6e8);
+  }
+}
+
+.resumen {
+  min-width: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+:host(.desplegada) .resumen {
+  color: var(--fosforo);
+}
+
+.marca {
+  margin-left: 0.45rem;
+  padding: 0 0.3rem;
+  border: 1px solid var(--fosforo-tenue);
+  color: var(--fosforo-tenue);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+
+  &.obsoleta {
+    border-color: var(--alerta);
+    color: var(--alerta);
+  }
+}
+
+.detalle {
+  padding: 0.25rem 1rem 1rem 3rem;
+}
+
+/* Tal cual se guardó: son esquemas SQL, contratos y planes donde la sangría y
+   los saltos son parte del contenido. */
+.contenido {
+  margin: 0 0 0.8rem;
+  padding: 0.6rem 0.7rem;
+  border-left: 2px solid var(--linea);
+  background: var(--fondo);
+  color: var(--texto);
+  font: inherit;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 26rem;
+  overflow-y: auto;
+}
+
+.razon {
+  margin: 0 0 0.8rem;
+  color: var(--alerta);
+  line-height: 1.55;
+}
+
+.etiqueta {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--fosforo-tenue);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.pie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  margin: 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--linea);
+  color: var(--apagado);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.clave {
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}

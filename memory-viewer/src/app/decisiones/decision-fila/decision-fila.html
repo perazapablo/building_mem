@@ -1,0 +1,60 @@
+<button type="button" class="cabezal" (click)="alternar.emit(decision().id)">
+  <span class="grilla">
+    <span class="marcador">{{ desplegada() ? '▾' : '▸' }}</span>
+    <span class="fecha">{{ decision().created_at | dia }}</span>
+    <span class="statement">{{ decision().statement }}</span>
+  </span>
+</button>
+
+@if (desplegada()) {
+  <div class="detalle">
+    <p class="insignias">
+      <span class="topico">{{ decision().topic_key }}</span>
+      <span class="insignia">{{ origen }}</span>
+      <span class="insignia">{{ decision().confidence }}</span>
+      @if (decision().supersedes) {
+        <span class="insignia revision">revisa una anterior</span>
+      }
+    </p>
+
+    @if (decision().forces.length) {
+      <div class="campo">
+        <span class="etiqueta">Qué la forzaba</span>
+        <ul>
+          @for (f of decision().forces; track f) {
+            <li>{{ f }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    @if (decision().alternatives.length) {
+      <div class="campo">
+        <span class="etiqueta">Qué se descartó</span>
+        <ul class="alternativas">
+          @for (a of decision().alternatives; track a.option) {
+            <li>
+              <span class="opcion">{{ a.option }}</span>
+              @if (a.rejected_because) {
+                <span class="porque">{{ a.rejected_because }}</span>
+              } @else {
+                <span class="porque sin-razon">nadie registró por qué</span>
+              }
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
+    @if (decision().consequences.length) {
+      <div class="campo">
+        <span class="etiqueta">Qué trajo</span>
+        <ul>
+          @for (c of decision().consequences; track c) {
+            <li>{{ c }}</li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
+}

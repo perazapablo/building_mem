@@ -1,0 +1,34 @@
+:host {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--linea);
+}
+
+button {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  background: none;
+  color: var(--apagado);
+  font: inherit;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--texto);
+    background: var(--realce);
+  }
+
+  &.activa {
+    border-color: var(--linea);
+    background: var(--seleccion);
+    color: var(--fosforo);
+  }
+}
+
+.cantidad {
+  margin-left: 0.5rem;
+  color: var(--fosforo-tenue);
+}

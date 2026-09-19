@@ -1,0 +1,136 @@
+:host {
+  display: block;
+  border-bottom: 1px solid var(--linea);
+  border-left: 2px solid transparent;
+}
+
+:host(.desplegada) {
+  border-left-color: var(--fosforo);
+  background: var(--seleccion);
+}
+
+.cabezal {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--realce);
+  }
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: 1.2rem 8.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.5rem;
+}
+
+.marcador,
+.fecha {
+  color: var(--fosforo-tenue);
+  line-height: 1.45;
+}
+
+.fecha {
+  text-transform: uppercase;
+}
+
+.statement {
+  min-width: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+:host(.desplegada) .statement {
+  color: var(--fosforo);
+}
+
+.detalle {
+  padding: 0.25rem 1rem 1rem 3rem;
+}
+
+.insignias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.9rem;
+}
+
+.insignia {
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--fosforo-tenue);
+  color: var(--fosforo-tenue);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+
+  &.revision {
+    border-color: var(--alerta);
+    color: var(--alerta);
+  }
+}
+
+.topico {
+  padding: 0.05rem 0.45rem;
+  background: var(--linea);
+  color: var(--texto);
+  font-size: 11px;
+}
+
+.campo {
+  margin: 0 0 0.85rem;
+  line-height: 1.55;
+
+  ul {
+    margin: 0.35rem 0 0;
+    padding-left: 1.1rem;
+  }
+
+  li {
+    margin-bottom: 0.3rem;
+  }
+}
+
+.etiqueta {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--fosforo-tenue);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.alternativas li {
+  list-style: none;
+  margin-left: -1.1rem;
+}
+
+.opcion {
+  display: block;
+  color: var(--texto);
+}
+
+.porque {
+  display: block;
+  color: var(--apagado);
+
+  &::before {
+    content: "descartada: ";
+  }
+
+  /* Un `rejected_because` nulo es estado válido: se descartó y nadie anotó por
+     qué. Se muestra como tal en vez de inventar una razón. */
+  &.sin-razon {
+    color: var(--alerta);
+    font-style: italic;
+  }
+}

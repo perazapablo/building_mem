@@ -1,0 +1,40 @@
+<button type="button" class="cabezal" (click)="alternar.emit(artefacto().id)">
+  <span class="grilla">
+    <span class="marcador">{{ desplegada() ? '▾' : '▸' }}</span>
+    <span class="fecha">{{ artefacto().created_at | dia }}</span>
+    <span class="tipo" [attr.data-tipo]="artefacto().type">{{ tipo() }}</span>
+    <span class="resumen">
+      {{ resumen() }}
+      @if (obsoleto()) {
+        <span class="marca obsoleta">obsoleto</span>
+      }
+      @if (revisiones()) {
+        <span class="marca">reescrito {{ revisiones() }}×</span>
+      }
+    </span>
+  </span>
+</button>
+
+@if (desplegada()) {
+  <div class="detalle">
+    <pre class="contenido">{{ artefacto().content }}</pre>
+
+    @if (obsoleto()) {
+      <p class="razon">
+        <span class="etiqueta">Por qué dejó de valer</span>
+        {{ artefacto().obsolete_reason || 'nadie registró por qué' }}
+      </p>
+    }
+
+    <p class="pie">
+      <span>{{ lineas() }} líneas</span>
+      <span>importancia {{ artefacto().importance }}</span>
+      @if (artefacto().topic_key) {
+        <span class="clave">{{ artefacto().topic_key }}</span>
+      }
+      @if (artefacto().updated_at) {
+        <span>editado {{ artefacto().updated_at | dia }}</span>
+      }
+    </p>
+  </div>
+}

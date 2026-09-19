@@ -1,0 +1,64 @@
+:host {
+  display: block;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border: 0;
+  border-left: 2px solid transparent;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--realce);
+  }
+
+  &.activo {
+    border-left-color: var(--fosforo);
+    background: var(--fosforo);
+    color: var(--fondo);
+
+    .meta,
+    .orden {
+      color: #0b3a22;
+    }
+  }
+}
+
+.orden {
+  color: var(--apagado);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.cuerpo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nombre {
+  overflow: hidden;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+}
+
+.meta {
+  color: var(--apagado);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}

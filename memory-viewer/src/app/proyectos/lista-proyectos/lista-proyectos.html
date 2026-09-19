@@ -1,0 +1,17 @@
+<h2 class="titulo-panel"><i>A</i> PROYECTOS</h2>
+
+<ul>
+  @for (p of proyectos(); track p.id; let i = $index) {
+    <li>
+      <button type="button" [class.activo]="p.id === seleccionadoId()" (click)="seleccionar.emit(p)">
+        <span class="orden">{{ i + 1 }}</span>
+        <span class="cuerpo">
+          <span class="nombre">{{ p.name }}</span>
+          <span class="meta">{{ p.project_type }}</span>
+        </span>
+      </button>
+    </li>
+  } @empty {
+    <li class="vacio">SIN PROYECTOS</li>
+  }
+</ul>

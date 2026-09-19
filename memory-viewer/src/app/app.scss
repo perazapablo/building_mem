@@ -1,0 +1,34 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.tablero {
+  display: grid;
+  flex: 1;
+  /* minmax(0,·) o la columna nunca se encoge: 1fr trae min-width auto. */
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 1rem;
+  overflow-y: auto;
+
+  /* El grafo se estira hasta el borde: es la única vista que necesita saber
+     cuánto alto tiene para acomodar los nodos. */
+  mv-panel-grafo {
+    flex: 1;
+    min-height: 0;
+  }
+
+  &.izquierda {
+    border-right: 1px solid var(--linea);
+  }
+}

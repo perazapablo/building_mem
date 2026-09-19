@@ -1,0 +1,19 @@
+@if (cargando()) {
+  <p class="vacio">CARGANDO…</p>
+} @else {
+  <ol class="registro">
+    @for (s of sesiones(); track s.id) {
+      <li>
+        <mv-sesion-fila
+          [sesion]="s"
+          [desplegada]="abiertaId() === s.id"
+          [detalle]="detalle(s.id)"
+          [bundle]="bundle(s.id)"
+          (alternar)="alternar.emit($event)"
+        />
+      </li>
+    } @empty {
+      <li class="vacio">SIN SESIONES REGISTRADAS</li>
+    }
+  </ol>
+}

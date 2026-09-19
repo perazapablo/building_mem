@@ -1,0 +1,8 @@
+@for (s of solapas(); track s.id) {
+  <button type="button" [class.activa]="s.id === activa()" (click)="cambiar.emit(s.id)">
+    {{ s.etiqueta }}
+    @if (s.cantidad !== undefined) {
+      <span class="cantidad">{{ s.cantidad }}</span>
+    }
+  </button>
+}
