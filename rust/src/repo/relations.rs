@@ -345,6 +345,154 @@ pub fn get_accepted_relations_for_ids(
     Ok(rows)
 }
 
+/// Un nodo del grafo: la entidad ya resuelta a algo mostrable. El grafo no
+/// sabe de tablas, sólo de `kind` + `label`.
+#[derive(Debug, Clone, Serialize)]
+pub struct GraphNode {
+    pub id: String,
+    pub kind: String,
+    /// Lo que la entidad dice, en sus palabras. **No** el `topic_key`: ese es
+    /// una clave de deduplicación (`backend-choice`, `legacy-88b1c4c1-…`) y
+    /// como título no contesta nada. La clave viaja aparte.
+    pub label: String,
+    pub clave: String,
+    pub texto: String,
+    pub tags: String,
+    /// Cuándo se guardó. Es lo que permite leer el grafo en el tiempo: qué de
+    /// lo de hoy engancha con algo de hace una semana.
+    pub creado: String,
+    pub importance: i64,
+    pub degree: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GraphEdge {
+    pub sync_id: String,
+    pub source: String,
+    pub target: String,
+    pub relation: String,
+    pub reason: String,
+    pub evidence: String,
+    pub confidence: f64,
+    pub judgment_status: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProjectGraph {
+    pub nodes: Vec<GraphNode>,
+    pub edges: Vec<GraphEdge>,
+}
+
+/// Las cinco tablas de entidades, unificadas a `(kind, id, project_id, label,
+/// importance)`. Es la pieza que le falta a `memory_relations`: la tabla guarda
+/// `source_type`/`source_id` sueltos, sin FK ni `project_id`, así que el
+/// proyecto de una arista sólo se sabe resolviendo sus dos puntas.
+const ENTITIES_CTE: &str = "
+    WITH ent AS (
+        SELECT 'note' AS kind, id, project_id,
+               substr(content, 1, 130) AS label,
+               COALESCE(topic_key,'') AS clave,
+               substr(content, 1, 900) AS texto,
+               COALESCE(tags,'') AS tags,
+               created_at,
+               importance
+          FROM notes
+        UNION ALL
+        SELECT 'decision', id, project_id,
+               substr(decision, 1, 130), COALESCE(topic_key,''),
+               substr(decision || CASE WHEN COALESCE(reasoning,'') <> ''
+                                       THEN char(10) || char(10) || reasoning ELSE '' END, 1, 900),
+               COALESCE(tags,''), created_at, importance
+          FROM decisions
+        UNION ALL
+        SELECT 'decision_record', id, project_id,
+               substr(statement, 1, 130), COALESCE(topic_key,''),
+               substr(statement, 1, 900), '', created_at, 3
+          FROM decision_records
+        UNION ALL
+        SELECT 'artifact', id, project_id,
+               substr(type || ': ' || content, 1, 130), COALESCE(topic_key,''),
+               substr(content, 1, 900), COALESCE(tags,''), created_at, importance
+          FROM artifacts
+        UNION ALL
+        SELECT 'code_entity', id, project_id,
+               COALESCE(NULLIF(name,''), qualified_name), COALESCE(topic_key,''),
+               substr(COALESCE(NULLIF(summary,''), '') ||
+                      CASE WHEN COALESCE(path,'') <> '' THEN char(10) || path ELSE '' END, 1, 900),
+               COALESCE(tags,''), created_at, importance
+          FROM code_entities
+    )";
+
+/// El grafo de relaciones de un proyecto, listo para dibujar: sólo las aristas
+/// con **ambas** puntas en el proyecto, y sólo los nodos que alguna arista toca.
+///
+/// Incluye las pendientes y las rechazadas a propósito — filtrarlas es decisión
+/// de quien mira, y esconder las rechazadas borraría la única señal de que el
+/// motor automático se equivoca.
+pub fn graph_for_project(db: &Db, project_id: &str) -> Result<ProjectGraph> {
+    db.with(|conn| {
+        let edges_sql = format!(
+            "{ENTITIES_CTE}
+             SELECT r.sync_id, r.source_id, r.target_id, r.relation,
+                    r.reason, r.evidence, r.confidence, r.judgment_status
+               FROM memory_relations r
+               JOIN ent s ON s.kind = r.source_type AND s.id = r.source_id
+               JOIN ent t ON t.kind = r.target_type AND t.id = r.target_id
+              WHERE s.project_id = ?1 AND t.project_id = ?1"
+        );
+        let mut stmt = conn.prepare(&edges_sql)?;
+        let edges: Vec<GraphEdge> = stmt
+            .query_map(params![project_id], |r| {
+                Ok(GraphEdge {
+                    sync_id: r.get(0)?,
+                    source: r.get(1)?,
+                    target: r.get(2)?,
+                    relation: r.get(3)?,
+                    reason: r.get(4)?,
+                    evidence: r.get(5)?,
+                    confidence: r.get(6)?,
+                    judgment_status: r.get(7)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+
+        // Todas las entidades del proyecto, no sólo las que una relación toca:
+        // el grafo se arma sobre los temas que comparten, y una entidad puede
+        // pertenecer a un tema sin tener ninguna fila en `memory_relations`.
+        let nodes_sql = format!(
+            "{ENTITIES_CTE},
+             grados AS (
+                 SELECT r.source_id AS id FROM memory_relations r
+                  UNION ALL
+                 SELECT r.target_id FROM memory_relations r
+             )
+             SELECT e.id, e.kind, e.label, COALESCE(e.clave,''), COALESCE(e.texto,''),
+                    COALESCE(e.tags,''), COALESCE(e.created_at,''), COALESCE(e.importance, 3),
+                    (SELECT count(*) FROM grados g WHERE g.id = e.id)
+               FROM ent e
+              WHERE e.project_id = ?1"
+        );
+        let mut stmt = conn.prepare(&nodes_sql)?;
+        let nodes: Vec<GraphNode> = stmt
+            .query_map(params![project_id], |r| {
+                Ok(GraphNode {
+                    id: r.get(0)?,
+                    kind: r.get(1)?,
+                    label: r.get(2)?,
+                    clave: r.get(3)?,
+                    texto: r.get(4)?,
+                    tags: r.get(5)?,
+                    creado: r.get(6)?,
+                    importance: r.get(7)?,
+                    degree: r.get(8)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+
+        Ok(ProjectGraph { nodes, edges })
+    })
+}
+
 fn map_relation(r: &rusqlite::Row<'_>) -> rusqlite::Result<Relation> {
     Ok(Relation {
         sync_id: r.get(0)?,
