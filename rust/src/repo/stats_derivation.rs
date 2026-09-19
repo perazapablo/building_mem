@@ -34,6 +34,10 @@ struct RawState {
     started_at: Option<String>,
     #[serde(default)]
     started_at_ms: Option<i64>,
+    /// Raíces git que la sesión tocó, anotadas por harness/stats.cjs al ver
+    /// un commit o una edición. Vacío en states viejos.
+    #[serde(default)]
+    repos: Vec<String>,
 }
 
 /// Resuelve el state dir en este orden:
@@ -65,19 +69,29 @@ fn iso_to_sqlite_utc(iso: &str) -> String {
     s.split('.').next().unwrap_or(s).to_string()
 }
 
-fn git_commits_since(iso: &str) -> Vec<String> {
-    Command::new("git")
-        .args(["log", "--since", iso, "--format=%H"])
-        .output()
-        .ok()
-        .filter(|o| o.status.success())
-        .map(|o| {
-            String::from_utf8_lossy(&o.stdout)
-                .lines()
-                .map(String::from)
-                .collect()
-        })
-        .unwrap_or_default()
+/// Un `git log` por cada repo que la sesión tocó. Antes corría uno solo sin
+/// `-C`, en el directorio del proceso del servidor: si ese directorio no era un
+/// repo, git fallaba y el error se volvía un 0 verosímil; si la sesión
+/// commiteó en dos repos, contaba uno. Gemelo de `gitCommitsSince` en
+/// harness/session-end.cjs.
+fn git_commits_since(iso: &str, repos: &[String]) -> Vec<String> {
+    let mut shas: Vec<String> = Vec::new();
+    for repo in repos {
+        let Some(out) = Command::new("git")
+            .args(["-C", repo, "log", "--since", iso, "--format=%H"])
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+        else {
+            continue;
+        };
+        for sha in String::from_utf8_lossy(&out.stdout).lines() {
+            if !sha.is_empty() && !shas.iter().any(|s| s == sha) {
+                shas.push(sha.to_string());
+            }
+        }
+    }
+    shas
 }
 
 fn session_focus(conn: &Connection, session_id: &str) -> Option<String> {
@@ -125,9 +139,10 @@ pub fn derive(conn: &Connection, session_id: &str, _project_id: &str) -> Result<
         })
         .unwrap_or_default();
 
+    let repos: &[String] = state.as_ref().map(|s| s.repos.as_slice()).unwrap_or(&[]);
     let commits = started_at_iso
         .as_deref()
-        .map(git_commits_since)
+        .map(|iso| git_commits_since(iso, repos))
         .unwrap_or_default();
 
     let last_focus = session_focus(conn, session_id).unwrap_or_default();
@@ -206,5 +221,53 @@ mod tests {
         assert!(s.duration_min > 0);
         env::remove_var("MCP_HARNESS_STATE_DIR");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    fn repo_con_un_commit(tag: &str) -> PathBuf {
+        let dir = unique_temp_dir(tag);
+        let git = |args: &[&str]| {
+            let ok = Command::new("git")
+                .arg("-C")
+                .arg(&dir)
+                .args(["-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false"])
+                .args(args)
+                .output()
+                .unwrap()
+                .status
+                .success();
+            assert!(ok, "git {args:?} falló en {}", dir.display());
+        };
+        git(&["init", "-q"]);
+        git(&["commit", "-q", "--allow-empty", "-m", tag]);
+        dir
+    }
+
+    /// El caso real del 2026-09-10: una sesión commitea en dos repos. Antes se
+    /// corría un solo `git log` en el directorio del proceso y se contaba 0 o 1.
+    #[test]
+    fn git_commits_since_cuenta_los_commits_de_cada_repo() {
+        let front = repo_con_un_commit("front");
+        let back = repo_con_un_commit("back");
+        let repos = vec![
+            front.to_string_lossy().into_owned(),
+            back.to_string_lossy().into_owned(),
+        ];
+        let shas = git_commits_since("2020-01-01T00:00:00Z", &repos);
+        assert_eq!(shas.len(), 2);
+        let _ = fs::remove_dir_all(&front);
+        let _ = fs::remove_dir_all(&back);
+    }
+
+    /// Un repo que ya no existe no rompe el conteo de los demás: antes un error
+    /// de git se volvía un 0 silencioso para toda la sesión.
+    #[test]
+    fn git_commits_since_saltea_un_repo_inexistente() {
+        let front = repo_con_un_commit("vivo");
+        let repos = vec![
+            "/no/existe/este/repo".to_string(),
+            front.to_string_lossy().into_owned(),
+        ];
+        assert_eq!(git_commits_since("2020-01-01T00:00:00Z", &repos).len(), 1);
+        let _ = fs::remove_dir_all(&front);
     }
 }

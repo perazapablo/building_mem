@@ -71,13 +71,25 @@ function collectMechanicalSummary(state) {
   }
 }
 
-function gitCommitsSince(startedAt) {
-  try {
-    const out = execFileSync('git', ['log', '--since', startedAt, '--format=%H'], {
-      encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    return out.split(/\r?\n/).filter(Boolean);
-  } catch { return []; }
+/**
+ * Un `git log` por cada repo que la sesión tocó (`state.repos`, lo anota
+ * stats.cjs al ver un commit o una edición). Antes corría un solo `git log`
+ * sin `-C`, en el directorio del proceso: si ese directorio no era un repo
+ * devolvía 0, y si la sesión commiteó en dos repos contaba uno solo.
+ * Gemelo de `git_commits_since` en rust/src/repo/stats_derivation.rs.
+ */
+function gitCommitsSince(state) {
+  const repos = Array.isArray(state.repos) ? state.repos : [];
+  const shas = new Set();
+  for (const repo of repos) {
+    try {
+      const out = execFileSync('git', ['-C', repo, 'log', '--since', state.started_at, '--format=%H'], {
+        encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+      });
+      for (const h of out.split(/\r?\n/).filter(Boolean)) shas.add(h);
+    } catch { /* repo movido o borrado: se cuenta lo que se pueda */ }
+  }
+  return [...shas];
 }
 
 function buildMechanicalSummary(state, extra) {
@@ -88,7 +100,7 @@ function buildMechanicalSummary(state, extra) {
     ? Math.round((now_ms - started_ms) / 60000) : 0;
 
   const files_edited = (state.files_edited || []).map((p) => ({ path: p, edits: 1 }));
-  const commits = gitCommitsSince(state.started_at);
+  const commits = gitCommitsSince(state);
 
   const goal = extra.focus || `sesión ${state.session_id.slice(0, 8)}`;
   const parts = [];
@@ -122,9 +134,11 @@ function buildMechanicalSummary(state, extra) {
   };
 }
 
+// Gemelo de `derive_title` en rust/src/repo/sessions.rs: el título es el goal
+// entero. Cortarlo acá perdía el texto para siempre.
 function deriveTitle(summary, session_id) {
   const goal = String(summary.goal || '').trim();
-  if (goal) return goal.slice(0, 80);
+  if (goal) return goal;
   return `checkpoint ${session_id.slice(0, 8)}`;
 }
 

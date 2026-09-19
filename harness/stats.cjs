@@ -6,6 +6,7 @@
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const { requiresFocus, checkFocus } = require('./focus-gate.cjs');
 const { READ_ONLY_BASH } = require(
   path.join(os.homedir(), '.config/agent-rules/skills/action-gating/hooks/claude-pre-tool.cjs')
@@ -34,6 +35,12 @@ function emptyState(session_id, project_id = null) {
     turns: 0,
     commits: 0,
     files_edited: [],       // dedup array of absolute paths
+    // Raíces git que la sesión tocó, por commit o por edición. Es lo que usan
+    // session-end.cjs y stats_derivation.rs para contar commits al cerrar:
+    // sin esto corrían `git log` en el directorio del proceso, que podía ser
+    // otro repo o ninguno.
+    repos: [],
+    repo_dirs: {},          // cache dir → raíz git (o null), para no llamar a git en cada Edit
     bash_effects: 0,
     memory_writes: 0,
     code_entities_touched: 0,
@@ -71,8 +78,51 @@ function initState(session_id, project_id = null) {
   return writeState(session_id, emptyState(session_id, project_id));
 }
 
+// `git commit`, también con opciones globales antes del subcomando
+// (`git -C <repo> commit`, `git -c user.name=x commit`). Antes la regex exigía
+// `git` pegado a `commit`, y los commits hechos con `-C` —la forma de commitear
+// en otro repo sin moverse— no se contaban.
+const GIT_COMMIT = /\bgit(?:\s+-[Cc]\s+(?:"[^"]+"|'[^']+'|\S+))*\s+commit\b/;
+
+/**
+ * El directorio donde corre un `git commit`: el de `git -C <dir>`, el del
+ * último `cd <dir>` antes del commit, o el cwd del hook. Una sesión puede
+ * commitear en varios repos desde una misma terminal, así que el cwd sólo no
+ * alcanza.
+ */
+function dirDelCommit(cmd, cwd) {
+  const base = cwd || process.cwd();
+  const sinComillas = (s) => s.replace(/^['"]|['"]$/g, '');
+  const expandir = (s) => (s.startsWith('~') ? path.join(os.homedir(), s.slice(1)) : s);
+
+  const conC = /\bgit\s+-C\s+("[^"]+"|'[^']+'|\S+)/.exec(cmd);
+  if (conC) return path.resolve(base, expandir(sinComillas(conC[1])));
+
+  const idx = cmd.search(GIT_COMMIT);
+  const antes = idx >= 0 ? cmd.slice(0, idx) : cmd;
+  const cds = [...antes.matchAll(/(?:^|[;&|]\s*)cd\s+("[^"]+"|'[^']+'|[^\s;&|]+)/g)];
+  if (cds.length) return path.resolve(base, expandir(sinComillas(cds[cds.length - 1][1])));
+
+  return base;
+}
+
+/** Raíz git de un directorio, o null si no está dentro de un repo. */
+function repoDe(dir) {
+  let d = dir;
+  // Un archivo recién creado en una carpeta nueva: subir hasta algo que exista.
+  while (d && !fs.existsSync(d) && path.dirname(d) !== d) d = path.dirname(d);
+  try {
+    const out = execFileSync('git', ['-C', d, 'rev-parse', '--show-toplevel'], {
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000,
+    }).trim();
+    return out || null;
+  } catch {
+    return null;
+  }
+}
+
 // classify a PostToolUse payload → list of mutations to apply to state.
-// Returns array of { field, op, value? } — op ∈ {'inc', 'add_path'}.
+// Returns array of { field, op, value? } — op ∈ {'inc', 'add_path', 'add_repo'}.
 function classify(payload) {
   const tool = payload?.tool_name || '';
   const input = payload?.tool_input || {};
@@ -85,7 +135,10 @@ function classify(payload) {
 
   if (tool === 'Write' || tool === 'Edit' || tool === 'NotebookEdit') {
     const fp = input.file_path || input.notebook_path;
-    if (fp) muts.push({ field: 'files_edited', op: 'add_path', value: fp });
+    if (fp) {
+      muts.push({ field: 'files_edited', op: 'add_path', value: fp });
+      muts.push({ field: 'repos', op: 'add_repo', value: path.dirname(fp) });
+    }
     return muts;
   }
 
@@ -93,8 +146,9 @@ function classify(payload) {
     const cmd = String(input.command || '').trim();
     if (!cmd) return muts;
     if (READ_ONLY_BASH.some((re) => re.test(cmd))) return muts;
-    if (/\bgit\s+commit\b/.test(cmd)) {
+    if (GIT_COMMIT.test(cmd)) {
       muts.push({ field: 'commits', op: 'inc' });
+      muts.push({ field: 'repos', op: 'add_repo', value: dirDelCommit(cmd, payload?.cwd) });
     } else {
       muts.push({ field: 'bash_effects', op: 'inc' });
     }
@@ -121,6 +175,12 @@ function applyMutations(state, muts) {
     } else if (m.op === 'add_path') {
       if (!Array.isArray(state[m.field])) state[m.field] = [];
       if (!state[m.field].includes(m.value)) state[m.field].push(m.value);
+    } else if (m.op === 'add_repo') {
+      if (!Array.isArray(state.repos)) state.repos = [];
+      if (!state.repo_dirs || typeof state.repo_dirs !== 'object') state.repo_dirs = {};
+      if (!(m.value in state.repo_dirs)) state.repo_dirs[m.value] = repoDe(m.value);
+      const repo = state.repo_dirs[m.value];
+      if (repo && !state.repos.includes(repo)) state.repos.push(repo);
     }
   }
   return state;
@@ -195,6 +255,8 @@ module.exports = {
   initState,
   classify,
   applyMutations,
+  dirDelCommit,
+  repoDe,
   recordToolUse,
   incrementTurns,
   readSnapshot,
